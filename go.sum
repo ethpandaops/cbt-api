@@ -22,6 +22,8 @@ github.com/googleapis/googleapis v0.0.0-20251008011822-d9a16f2feec3 h1:JOJlIXARY
 github.com/googleapis/googleapis v0.0.0-20251008011822-d9a16f2feec3/go.mod h1:XrPm4xpez/lHHyE+8/G+NqQRcB4lg42HF9zQVTvxtXw=
 github.com/googleapis/googleapis v0.0.0-20251008053119-2954ae6003c9 h1:H4QdiiUHynUqd2Lx4oQu/nqaWM+/lTkDsA2QqCiPROI=
 github.com/googleapis/googleapis v0.0.0-20251008053119-2954ae6003c9/go.mod h1:XrPm4xpez/lHHyE+8/G+NqQRcB4lg42HF9zQVTvxtXw=
+github.com/googleapis/googleapis v0.0.0-20251008212912-4d8abb3f02f1 h1:aZ7xJe9fda3qPngMXLhDkQlnwcZCECUaypbl7JMOu8k=
+github.com/googleapis/googleapis v0.0.0-20251008212912-4d8abb3f02f1/go.mod h1:XrPm4xpez/lHHyE+8/G+NqQRcB4lg42HF9zQVTvxtXw=
 github.com/josharian/intern v1.0.0 h1:vlS4z54oSdjm0bgjRigI+G1HpF+tI+9rE5LLzOg8HmY=
 github.com/josharian/intern v1.0.0/go.mod h1:5DoeVV0s6jJacbCEi61lwdGj/aVlrQvzHFFd8Hwg//Y=
 github.com/juju/gnuflag v0.0.0-20171113085948-2ce1bb71843d/go.mod h1:2PavIy+JPciBPrBUjwbNvtwB6RQlve+hkpll6QSNmOE=
