@@ -60,7 +60,8 @@ func main() {
 		}
 	}
 
-	fmt.Printf("Converted %d parameters from dot notation to underscore notation\n", totalConverted)
+	// Fix schema names (e.g., "50ms" -> "50Ms")
+	_ = fixSchemaNames(doc)
 
 	// Write output as YAML (not JSON)
 	data, err := doc.MarshalJSON()
@@ -351,4 +352,191 @@ func parseProtoFile(filename string, descriptions ProtoDescriptions) error {
 	}
 
 	return scanner.Err()
+}
+
+// fixSchemaNames fixes schema names with numeric patterns (e.g., "50ms" -> "50Ms").
+func fixSchemaNames(doc *openapi3.T) int {
+	if doc.Components == nil || doc.Components.Schemas == nil {
+		return 0
+	}
+
+	fixed := 0
+	renamedSchemas := make(map[string]string)
+	newSchemas := make(openapi3.Schemas)
+
+	// Build mapping of old name -> new name and create new schemas map
+	for name, schemaRef := range doc.Components.Schemas {
+		newName := fixCapitalization(name)
+		if newName != name {
+			fixed++
+			renamedSchemas[name] = newName
+		}
+
+		newSchemas[newName] = schemaRef
+	}
+
+	doc.Components.Schemas = newSchemas
+
+	// Update all references throughout the document
+	if len(renamedSchemas) > 0 {
+		updateSchemaReferences(doc, renamedSchemas)
+	}
+
+	return fixed
+}
+
+// updateSchemaReferences updates all $ref values in the document to use new schema names.
+func updateSchemaReferences(doc *openapi3.T, renamedSchemas map[string]string) {
+	// Update references in paths
+	for _, pathItem := range doc.Paths.Map() {
+		updateOperationRefs(pathItem.Get, renamedSchemas)
+		updateOperationRefs(pathItem.Post, renamedSchemas)
+		updateOperationRefs(pathItem.Put, renamedSchemas)
+		updateOperationRefs(pathItem.Delete, renamedSchemas)
+		updateOperationRefs(pathItem.Patch, renamedSchemas)
+		updateOperationRefs(pathItem.Head, renamedSchemas)
+		updateOperationRefs(pathItem.Options, renamedSchemas)
+	}
+
+	// Update references in components
+	if doc.Components != nil {
+		// Update response references
+		for _, respRef := range doc.Components.Responses {
+			updateResponseRef(respRef, renamedSchemas)
+		}
+
+		// Update parameter references
+		for _, paramRef := range doc.Components.Parameters {
+			updateParameterRef(paramRef, renamedSchemas)
+		}
+
+		// Update schema references (recursive)
+		for _, schemaRef := range doc.Components.Schemas {
+			updateSchemaRef(schemaRef, renamedSchemas)
+		}
+	}
+}
+
+// updateOperationRefs updates references in an operation.
+func updateOperationRefs(op *openapi3.Operation, renamedSchemas map[string]string) {
+	if op == nil {
+		return
+	}
+
+	// Update parameter references
+	for _, paramRef := range op.Parameters {
+		updateParameterRef(paramRef, renamedSchemas)
+	}
+
+	// Update request body references
+	if op.RequestBody != nil && op.RequestBody.Value != nil {
+		for _, mediaType := range op.RequestBody.Value.Content {
+			if mediaType.Schema != nil {
+				updateSchemaRef(mediaType.Schema, renamedSchemas)
+			}
+		}
+	}
+
+	// Update response references
+	for _, respRef := range op.Responses.Map() {
+		updateResponseRef(respRef, renamedSchemas)
+	}
+}
+
+// updateResponseRef updates references in a response.
+func updateResponseRef(respRef *openapi3.ResponseRef, renamedSchemas map[string]string) {
+	if respRef == nil || respRef.Value == nil {
+		return
+	}
+
+	for _, mediaType := range respRef.Value.Content {
+		if mediaType.Schema != nil {
+			updateSchemaRef(mediaType.Schema, renamedSchemas)
+		}
+	}
+}
+
+// updateParameterRef updates references in a parameter.
+func updateParameterRef(paramRef *openapi3.ParameterRef, renamedSchemas map[string]string) {
+	if paramRef == nil || paramRef.Value == nil {
+		return
+	}
+
+	if paramRef.Value.Schema != nil {
+		updateSchemaRef(paramRef.Value.Schema, renamedSchemas)
+	}
+}
+
+// updateSchemaRef recursively updates references in a schema.
+func updateSchemaRef(schemaRef *openapi3.SchemaRef, renamedSchemas map[string]string) {
+	if schemaRef == nil {
+		return
+	}
+
+	// Update the $ref if it points to a renamed schema
+	if schemaRef.Ref != "" {
+		for oldName, newName := range renamedSchemas {
+			oldRef := "#/components/schemas/" + oldName
+			newRef := "#/components/schemas/" + newName
+
+			if schemaRef.Ref == oldRef {
+				schemaRef.Ref = newRef
+
+				break
+			}
+		}
+	}
+
+	// Recursively update nested schemas
+	if schemaRef.Value != nil {
+		// Update properties
+		for _, propRef := range schemaRef.Value.Properties {
+			updateSchemaRef(propRef, renamedSchemas)
+		}
+
+		// Update items (for arrays)
+		if schemaRef.Value.Items != nil {
+			updateSchemaRef(schemaRef.Value.Items, renamedSchemas)
+		}
+
+		// Update allOf, anyOf, oneOf
+		for _, s := range schemaRef.Value.AllOf {
+			updateSchemaRef(s, renamedSchemas)
+		}
+
+		for _, s := range schemaRef.Value.AnyOf {
+			updateSchemaRef(s, renamedSchemas)
+		}
+
+		for _, s := range schemaRef.Value.OneOf {
+			updateSchemaRef(s, renamedSchemas)
+		}
+
+		// Update not
+		if schemaRef.Value.Not != nil {
+			updateSchemaRef(schemaRef.Value.Not, renamedSchemas)
+		}
+
+		// Update additionalProperties
+		if schemaRef.Value.AdditionalProperties.Schema != nil {
+			updateSchemaRef(schemaRef.Value.AdditionalProperties.Schema, renamedSchemas)
+		}
+	}
+}
+
+// fixCapitalization fixes capitalization in names with numeric patterns.
+// Example: "FctAttestationFirstSeenChunked50ms" -> "FctAttestationFirstSeenChunked50Ms".
+func fixCapitalization(s string) string {
+	// Look for patterns like "50ms" and capitalize the letter after digits
+	result := []rune(s)
+	for i := 0; i < len(result)-1; i++ {
+		// If current char is a digit and next char is a lowercase letter
+		if result[i] >= '0' && result[i] <= '9' {
+			if i+1 < len(result) && result[i+1] >= 'a' && result[i+1] <= 'z' {
+				result[i+1] = result[i+1] - 32 // Convert to uppercase
+			}
+		}
+	}
+
+	return string(result)
 }

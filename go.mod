@@ -12,10 +12,11 @@ require (
 require (
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/ethpandaops/xatu-cbt v0.0.0-20251006044615-218bdeef2872 // indirect
 	github.com/go-openapi/jsonpointer v0.21.0 // indirect
 	github.com/go-openapi/swag v0.23.0 // indirect
-	github.com/google/uuid v1.5.0 // indirect
-	github.com/googleapis/googleapis v0.0.0-20251008011822-d9a16f2feec3 // indirect
+	github.com/google/uuid v1.6.0 // indirect
+	github.com/googleapis/googleapis v0.0.0-20251008053119-2954ae6003c9 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
@@ -24,4 +25,5 @@ require (
 	github.com/perimeterx/marshmallow v1.1.5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/woodsbury/decimal128 v1.3.0 // indirect
+	google.golang.org/protobuf v1.36.10 // indirect
 )
