@@ -50,6 +50,7 @@ type Field struct {
 	JSONTag string
 }
 
+// loadOpenAPI loads and parses an OpenAPI specification file.
 func loadOpenAPI(path string) (*OpenAPISpec, error) {
 	loader := openapi3.NewLoader()
 
@@ -90,6 +91,7 @@ func loadOpenAPI(path string) (*OpenAPISpec, error) {
 	return spec, nil
 }
 
+// parseEndpoint parses an OpenAPI operation into an Endpoint struct.
 func parseEndpoint(path, method string, op *openapi3.Operation) Endpoint {
 	endpoint := Endpoint{
 		Path:        path,
@@ -132,6 +134,7 @@ func parseEndpoint(path, method string, op *openapi3.Operation) Endpoint {
 	return endpoint
 }
 
+// parseParam parses an OpenAPI parameter into a Param struct, extracting field and operator from underscore notation.
 func parseParam(p *openapi3.Parameter) Param {
 	param := Param{
 		Name: p.Name,
@@ -178,6 +181,7 @@ func parseParam(p *openapi3.Parameter) Param {
 	return param
 }
 
+// isFilterOperator checks if a string is a known filter operator.
 func isFilterOperator(s string) bool {
 	operators := map[string]bool{
 		// Comparison operators
@@ -212,6 +216,7 @@ func isFilterOperator(s string) bool {
 	return operators[s]
 }
 
+// toGoType converts OpenAPI type and format to Go type.
 func toGoType(typ, format string, pointer bool) string {
 	var goType string
 
@@ -244,20 +249,24 @@ func toGoType(typ, format string, pointer bool) string {
 	return goType
 }
 
+// toHandlerName converts an operation ID to a handler name by removing underscores.
 func toHandlerName(operationID string) string {
 	return strings.ReplaceAll(operationID, "_", "")
 }
 
+// toParamsType converts a handler name to the params type name.
 func toParamsType(handlerName string) string {
 	// "FctBlockServiceList" → "FctBlockServiceListParams"
 	// Note: Get operations don't have Params structs, they use path parameters directly
 	return handlerName + "Params"
 }
 
+// toResponseType converts a table name to the response type name.
 func toResponseType(tableName string) string {
 	return "List" + toPascalCase(tableName) + "Response"
 }
 
+// parseType parses an OpenAPI schema into a Type struct.
 func parseType(name string, schema *openapi3.Schema) *Type {
 	t := &Type{Name: name}
 

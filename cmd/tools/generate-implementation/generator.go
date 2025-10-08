@@ -46,6 +46,7 @@ func (g *CodeGenerator) Generate() string {
 	return sb.String()
 }
 
+// generateHeader generates the package declaration and imports.
 func (g *CodeGenerator) generateHeader() string {
 	return `package server
 
@@ -68,6 +69,7 @@ import (
 )`
 }
 
+// generateServerStruct generates the Server struct definition.
 func (g *CodeGenerator) generateServerStruct() string {
 	return `// Server implements the generated ServerInterface.
 type Server struct {
@@ -76,6 +78,7 @@ type Server struct {
 }`
 }
 
+// generateHelpers generates helper functions for parsing lists.
 func (g *CodeGenerator) generateHelpers() string {
 	return `// Helper: Parse comma-separated uint32 list
 func parseUInt32List(s string) []uint32 {
@@ -143,6 +146,7 @@ func parseStringList(s string) []string {
 }`
 }
 
+// generateTypeConverters generates proto to OpenAPI type converter functions.
 func (g *CodeGenerator) generateTypeConverters() string {
 	var sb strings.Builder
 
@@ -180,6 +184,7 @@ func protoToOpenAPI%s(p *clickhouse.%s) handlers.%s {
 	return sb.String()
 }
 
+// generateUtilities generates utility functions for HTTP handling.
 func (g *CodeGenerator) generateUtilities() string {
 	return `// Utility functions
 

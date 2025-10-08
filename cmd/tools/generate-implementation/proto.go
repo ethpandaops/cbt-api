@@ -27,6 +27,7 @@ type FilterType struct {
 	Operators  []string // ["eq", "ne", "lt", "lte", "gt", "gte", "in", "not_in"]
 }
 
+// analyzeProtos analyzes proto files and extracts filter types, query builders, and request field mappings.
 func analyzeProtos(protoPath string) (*ProtoInfo, error) {
 	info := &ProtoInfo{
 		FilterTypes:   make(map[string]*FilterType),
@@ -204,6 +205,7 @@ func getFieldTypeFromDescriptor(field *descriptorpb.FieldDescriptorProto, messag
 	return ""
 }
 
+// getKnownFilterTypes returns the known filter types from clickhouse-proto-gen.
 func getKnownFilterTypes() map[string]*FilterType {
 	return map[string]*FilterType{
 		// Scalar filters
@@ -352,9 +354,9 @@ func getKnownFilterTypes() map[string]*FilterType {
 	}
 }
 
+// toSnakeCase converts PascalCase to snake_case.
+// Handles numeric sequences: "Top100By" → "top_100_by".
 func toSnakeCase(s string) string {
-	// Convert PascalCase to snake_case
-	// Handles: "Top100By" → "top_100_by" (adds underscores before capitals AND before digits after letters)
 	var result strings.Builder
 
 	for i, r := range s {
@@ -380,6 +382,8 @@ func toSnakeCase(s string) string {
 	return strings.ToLower(result.String())
 }
 
+// toPascalCase converts snake_case to PascalCase.
+// Handles numeric prefixes: "50ms" → "50Ms".
 func toPascalCase(s string) string {
 	parts := strings.Split(s, "_")
 	for i := range parts {

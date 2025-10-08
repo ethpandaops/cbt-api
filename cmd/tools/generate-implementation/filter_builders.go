@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// generateFilterBuilders generates filter builder functions for all filter types.
 func generateFilterBuilders(protoInfo *ProtoInfo) string {
 	var sb strings.Builder
 
@@ -38,6 +39,7 @@ func generateFilterBuilders(protoInfo *ProtoInfo) string {
 	return sb.String()
 }
 
+// generateScalarFilterBuilder generates a filter builder for scalar (non-nullable) filter types.
 func generateScalarFilterBuilder(ft *FilterType) string {
 	funcName := "build" + ft.Name
 	params := generateFilterParams(ft)
@@ -221,6 +223,7 @@ func %s(%s) *clickhouse.%s {
 		baseTypePascal, ft.Name, ft.Name, baseTypePascal)
 }
 
+// generateNullableFilterBuilder generates a filter builder for nullable filter types.
 func generateNullableFilterBuilder(ft *FilterType) string {
 	funcName := "build" + ft.Name
 	params := generateFilterParams(ft)
@@ -411,6 +414,7 @@ func %s(%s) *clickhouse.%s {
 		baseTypePascal, ft.Name, ft.Name, baseTypePascal)
 }
 
+// generateMapFilterBuilder generates a filter builder for map filter types.
 func generateMapFilterBuilder(ft *FilterType) string {
 	funcName := "build" + ft.Name
 
@@ -467,6 +471,7 @@ func %s(hasKey, notHasKey, hasAnyKey, hasAllKeys *string) *clickhouse.%s {
 		ft.Name, ft.Name)
 }
 
+// generateFilterParams generates the function parameter list for a filter builder.
 func generateFilterParams(ft *FilterType) string {
 	goType := "*" + ft.BaseType
 
@@ -494,6 +499,7 @@ func generateFilterParams(ft *FilterType) string {
 	return fmt.Sprintf("eq, ne, lt, lte, gt, gte %s, in, notIn *string", goType)
 }
 
+// generateNilCheck generates a nil check expression for all filter parameters.
 func generateNilCheck(ft *FilterType) string {
 	if ft.BaseType == "string" {
 		return "eq == nil && ne == nil && contains == nil && startsWith == nil && endsWith == nil && like == nil && notLike == nil && in == nil && notIn == nil"

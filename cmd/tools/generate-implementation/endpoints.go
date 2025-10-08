@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// generateEndpoints generates all endpoint implementations.
 func generateEndpoints(spec *OpenAPISpec, protoInfo *ProtoInfo) string {
 	var sb strings.Builder
 
@@ -15,7 +16,7 @@ func generateEndpoints(spec *OpenAPISpec, protoInfo *ProtoInfo) string {
 	for _, endpoint := range spec.Endpoints {
 		switch endpoint.Operation {
 		case "List":
-			sb.WriteString(generateEndpoint(endpoint, protoInfo))
+			sb.WriteString(generateListEndpoint(endpoint, protoInfo))
 			sb.WriteString("\n\n")
 		case "Get":
 			sb.WriteString(generateGetEndpoint(endpoint, protoInfo))
@@ -26,7 +27,8 @@ func generateEndpoints(spec *OpenAPISpec, protoInfo *ProtoInfo) string {
 	return sb.String()
 }
 
-func generateEndpoint(ep Endpoint, protoInfo *ProtoInfo) string {
+// generateListEndpoint generates a List endpoint implementation.
+func generateListEndpoint(ep Endpoint, protoInfo *ProtoInfo) string {
 	// Use composite key to lookup proto info: "table:Operation"
 	key := ep.TableName + ":" + ep.Operation
 	queryBuilder := protoInfo.QueryBuilders[key]
@@ -113,6 +115,7 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, params handlers.%s) 
 		itemFieldName)
 }
 
+// generateGetEndpoint generates a Get endpoint implementation with path parameter.
 func generateGetEndpoint(ep Endpoint, protoInfo *ProtoInfo) string {
 	// Use composite key to lookup proto info: "table:Operation"
 	key := ep.TableName + ":" + ep.Operation
@@ -189,6 +192,7 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, %s %s) {
 		itemType)
 }
 
+// generateFilterAssignments generates filter field assignments from HTTP params to proto request.
 func generateFilterAssignments(ep Endpoint, protoInfo *ProtoInfo) string {
 	var sb strings.Builder
 
@@ -241,6 +245,7 @@ func generateFilterAssignments(ep Endpoint, protoInfo *ProtoInfo) string {
 	return sb.String()
 }
 
+// generateBuilderArgs generates the arguments for a filter builder function in the correct order.
 func generateBuilderArgs(params []Param, filterType string) string {
 	// Map operator → parameter
 	argMap := make(map[string]string)
@@ -323,11 +328,13 @@ func generateBuilderArgs(params []Param, filterType string) string {
 	return strings.Join(args, ", ")
 }
 
+// getItemType converts a table name to its item type name.
 func getItemType(tableName string) string {
 	// "fct_block" → "FctBlock"
 	return toPascalCase(tableName)
 }
 
+// getItemFieldName converts a table name to the field name used in response structs by oapi-codegen.
 func getItemFieldName(tableName string) string {
 	// Field names in oapi-codegen use simple PascalCase without special numeric suffix handling
 	// "fct_node_active_last_24h" → "FctNodeActiveLast24h" (not "FctNodeActiveLast24H")
