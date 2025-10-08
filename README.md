@@ -1,44 +1,40 @@
 # xatu-cbt-api
 
-OpenAPI 3.0 specification generator for Xatu CBT REST API.
+Generates OpenAPI spec and server implementation for Xatu CBT REST API.
 
-## Synopsis
+## Overview
 
-This project generates a comprehensive OpenAPI specification from annotated Protocol Buffer definitions in [xatu-cbt](https://github.com/ethpandaops/xatu-cbt). The tool automatically flattens nested filter parameters into underscore notation and enriches them with field descriptions extracted from proto comments.
+Generates from [xatu-cbt](https://github.com/ethpandaops/xatu-cbt) proto definitions:
+- OpenAPI 3.0 specification with flattened filter parameters
+- Go server interface (via oapi-codegen)
+- Complete server implementation with automatic proto → HTTP mapping
 
-The result is a production-ready OpenAPI spec with REST endpoints covering all fact tables, complete with type-safe parameter validation and comprehensive documentation.
-
-## Getting Started
-
-### Quick Start
+## Quick Start
 
 ```bash
-# Install required tools
-make install-tools
-
-# Generate the OpenAPI specification
-make openapi
-
-# Validate the generated spec
-make validate
-
-# View in Swagger UI
-make serve-docs
+make install-tools    # Install dependencies
+make generate-server  # Generate OpenAPI spec + server code
+make serve-docs       # View in Swagger UI (localhost:3001)
 ```
 
-The generated `openapi.yaml` will be available in the project root.
+Generates:
+- `openapi.yaml` - OpenAPI spec
+- `internal/handlers/generated.go` - Server interface (oapi-codegen)
+- `internal/server/implementation.go` - Server implementation
 
 ## Make Commands
 
 | Command | Description |
 |---------|-------------|
 | `make help` | Show all available commands |
-| `make all` | Install tools, build, and generate OpenAPI spec |
+| `make all` | Install tools, build, and generate OpenAPI spec and server code |
 | `make openapi` | Generate OpenAPI specification from proto files |
+| `make generate-descriptors` | Generate protobuf descriptor file for robust parsing |
+| `make generate-server` | Generate Go server interface and implementation from OpenAPI specification |
 | `make build` | Build the openapi-filter-flatten tool |
 | `make validate` | Validate the generated OpenAPI spec |
 | `make serve-docs` | Serve OpenAPI spec with Swagger UI (http://localhost:3001) |
-| `make install-tools` | Install required dependencies (protoc-gen-openapi, etc.) |
+| `make install-tools` | Install required dependencies (protoc-gen-openapi, oapi-codegen, etc.) |
 | `make clone-xatu-cbt` | Clone/update xatu-cbt repository for proto files |
 | `make clean` | Remove all generated files and build artifacts |
 | `make fmt` | Format Go code |
@@ -55,7 +51,7 @@ All fact tables (`fct_*`) from xatu-cbt are exposed as REST endpoints:
 GET /api/v1/fct_attestation_correctness_by_validator_head
 GET /api/v1/fct_block
 GET /api/v1/fct_mev_bid_count_by_builder
-... (54 total endpoints)
+...
 ```
 
 ### Filter Parameters
@@ -75,5 +71,75 @@ Filters use underscore notation with operator suffixes:
 - Nullable: `is_null`, `is_not_null`
 - Map: `has_key`, `not_has_key`, `has_any_key`, `has_all_keys`
 
-**Note:** List filters (`_in_values`, `_not_in_values`) use comma-separated strings for better HTTP client compatibility.
+**Note:** List filters (`_in_values`, `_not_in_values`) use comma-separated strings.
+
+## Server Implementation
+
+The server implementation is **automatically generated** from proto descriptors:
+
+```go
+// Example: internal/server/implementation.go (generated)
+func (s *Server) FctBlockServiceList(w http.ResponseWriter, r *http.Request, params handlers.FctBlockServiceListParams) {
+    // 1. Map HTTP params → Proto request
+    req := &clickhouse.ListFctBlockRequest{PageSize: 100}
+    if params.SlotEq != nil {
+        req.Slot = &clickhouse.UInt32Filter{
+            Filter: &clickhouse.UInt32Filter_Eq{Eq: uint32(*params.SlotEq)},
+        }
+    }
+
+    // 2. Use xatu-cbt query builder
+    sqlQuery, _ := clickhouse.BuildListFctBlockQuery(req)
+
+    // 3. Execute and return results
+    rows, _ := s.db.Query(ctx, sqlQuery.Query, sqlQuery.Args...)
+    // ... scan and respond
+}
+```
+
+**What's generated:**
+- All xatu-cbt endpoints (List + Get for each table)
+- HTTP params → Proto filter mapping
+- Query builder integration
+- ClickHouse execution + result scanning
+- Proto → OpenAPI type conversion
+
+### Usage
+
+```go
+// Wire up the generated server
+db := clickhouse.OpenDB(&clickhouse.Options{...})
+config := &server.Config{
+    ClickHouse: server.ClickHouseConfig{Database: "default", UseFinal: true},
+}
+srv := server.NewServer(db, config)
+
+// Start HTTP server
+handler := handlers.Handler(srv)
+http.ListenAndServe(":8080", handler)
+```
+
+## How It Works
+
+**Generation pipeline:**
+1. Proto descriptors → `.descriptors.pb` (via protoc)
+2. Proto files → `openapi.yaml` (via protoc-gen-openapi + flattening)
+3. OpenAPI → `internal/handlers/generated.go` (via oapi-codegen)
+4. Descriptors + OpenAPI → `internal/server/implementation.go` (via generate-implementation)
+
+**Request flow:**
+1. HTTP request → oapi-codegen router parses params
+2. Generated implementation maps params → proto filters
+3. Calls xatu-cbt query builder → SQL query
+4. Executes on ClickHouse → scan results
+5. Converts proto → OpenAPI types → JSON response
+
+## Development
+
+Update xatu-cbt version in Makefile, then regenerate:
+```bash
+make clean && make generate-server
+```
+
+Custom endpoint logic: edit `cmd/tools/generate-implementation/endpoints.go`
 

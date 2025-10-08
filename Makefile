@@ -27,7 +27,7 @@ help: ## Show this help message
 	@echo "$(GREEN)Available targets:$(RESET)"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-20s$(RESET) %s\n", $$1, $$2}'
 
-all: install-tools build openapi ## Install tools, build, and generate OpenAPI
+all: install-tools build openapi generate-server ## Install tools, build, generate OpenAPI and server code
 
 clone-xatu-cbt: ## Clone xatu-cbt repository for proto files
 	@if [ -d "$(XATU_CBT_DIR)" ]; then \
@@ -60,14 +60,39 @@ openapi: build clone-xatu-cbt ## Generate OpenAPI specification from proto files
 		--proto-path $(PROTO_PATH)
 	@echo "$(GREEN)✓ OpenAPI spec generated: $(OUTPUT_FILE)$(RESET)"
 
+generate-descriptors: clone-xatu-cbt ## Generate protobuf descriptor file for robust parsing
+	@echo "$(CYAN)==> Generating protobuf descriptors...$(RESET)"
+	@GOOGLEAPIS_PATH=$$(go list -m -f '{{.Dir}}' github.com/googleapis/googleapis); \
+	protoc \
+		--descriptor_set_out=.descriptors.pb \
+		--include_imports \
+		--proto_path=$(XATU_CBT_DIR)/pkg/proto/clickhouse \
+		--proto_path=$$GOOGLEAPIS_PATH \
+		$(XATU_CBT_DIR)/pkg/proto/clickhouse/*.proto
+	@echo "$(GREEN)✓ Protobuf descriptors generated: .descriptors.pb$(RESET)"
+
+generate-server: openapi generate-descriptors ## Generate Go server code from OpenAPI specification
+	@echo "$(CYAN)==> Generating server interface from OpenAPI spec...$(RESET)"
+	@mkdir -p internal/handlers
+	@oapi-codegen --config oapi-codegen.yaml openapi.yaml > internal/handlers/generated.go
+	@echo "$(GREEN)✓ Server interface generated: internal/handlers/generated.go$(RESET)"
+	@echo "$(CYAN)==> Generating server implementation...$(RESET)"
+	@mkdir -p internal/server
+	@go run ./cmd/tools/generate-implementation \
+		--openapi openapi.yaml \
+		--proto-path $(XATU_CBT_DIR)/pkg/proto/clickhouse \
+		--output internal/server/implementation.go
+	@echo "$(GREEN)✓ Server implementation generated: internal/server/implementation.go$(RESET)"
+
 build: ## Build the openapi-filter-flatten tool
 	@echo "$(CYAN)==> Building openapi-filter-flatten tool...$(RESET)"
 	@go build -o bin/openapi-filter-flatten $(TOOL_DIR)
 	@echo "$(GREEN)✓ Built: bin/openapi-filter-flatten$(RESET)"
 
-install-tools: ## Install required tools (protoc-gen-openapi)
+install-tools: ## Install required tools (protoc-gen-openapi, oapi-codegen)
 	@echo "$(CYAN)==> Installing required tools...$(RESET)"
 	@go install github.com/kollalabs/protoc-gen-openapi@latest
+	@go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
 	@go get github.com/getkin/kin-openapi/openapi3@latest
 	@go get github.com/googleapis/googleapis@latest
 	@go get gopkg.in/yaml.v3@latest
@@ -80,6 +105,8 @@ clean: ## Remove generated files
 	@rm -rf $(TMP_DIR)
 	@rm -f $(OUTPUT_FILE)
 	@rm -rf bin/
+	@rm -rf internal/handlers/generated.go
+	@rm -rf internal/server/implementation.go
 	@rm -rf $(XATU_CBT_DIR)
 	@echo "$(GREEN)✓ Cleaned$(RESET)"
 
