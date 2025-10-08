@@ -41,6 +41,7 @@ openapi.yaml
 openapi.json
 .xatu-cbt/
 internal/handlers/generated.go
+internal/server/implementation.go
 
 # Build artifacts
 *.log
