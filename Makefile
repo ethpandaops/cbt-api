@@ -60,11 +60,29 @@ openapi: build clone-xatu-cbt ## Generate OpenAPI specification from proto files
 		--proto-path $(PROTO_PATH)
 	@echo "$(GREEN)✓ OpenAPI spec generated: $(OUTPUT_FILE)$(RESET)"
 
-generate-server: openapi ## Generate Go server code from OpenAPI specification
-	@echo "$(CYAN)==> Generating server code from OpenAPI spec...$(RESET)"
+generate-descriptors: clone-xatu-cbt ## Generate protobuf descriptor file for robust parsing
+	@echo "$(CYAN)==> Generating protobuf descriptors...$(RESET)"
+	@GOOGLEAPIS_PATH=$$(go list -m -f '{{.Dir}}' github.com/googleapis/googleapis); \
+	protoc \
+		--descriptor_set_out=.descriptors.pb \
+		--include_imports \
+		--proto_path=$(XATU_CBT_DIR)/pkg/proto/clickhouse \
+		--proto_path=$$GOOGLEAPIS_PATH \
+		$(XATU_CBT_DIR)/pkg/proto/clickhouse/*.proto
+	@echo "$(GREEN)✓ Protobuf descriptors generated: .descriptors.pb$(RESET)"
+
+generate-server: openapi generate-descriptors ## Generate Go server code from OpenAPI specification
+	@echo "$(CYAN)==> Generating server interface from OpenAPI spec...$(RESET)"
 	@mkdir -p internal/handlers
 	@oapi-codegen --config oapi-codegen.yaml openapi.yaml > internal/handlers/generated.go
-	@echo "$(GREEN)✓ Server code generated: internal/handlers/generated.go$(RESET)"
+	@echo "$(GREEN)✓ Server interface generated: internal/handlers/generated.go$(RESET)"
+	@echo "$(CYAN)==> Generating server implementation...$(RESET)"
+	@mkdir -p internal/server
+	@go run ./cmd/tools/generate-implementation \
+		--openapi openapi.yaml \
+		--proto-path $(XATU_CBT_DIR)/pkg/proto/clickhouse \
+		--output internal/server/implementation.go
+	@echo "$(GREEN)✓ Server implementation generated: internal/server/implementation.go$(RESET)"
 
 build: ## Build the openapi-filter-flatten tool
 	@echo "$(CYAN)==> Building openapi-filter-flatten tool...$(RESET)"
@@ -88,6 +106,7 @@ clean: ## Remove generated files
 	@rm -f $(OUTPUT_FILE)
 	@rm -rf bin/
 	@rm -rf internal/handlers/generated.go
+	@rm -rf internal/server/implementation.go
 	@rm -rf $(XATU_CBT_DIR)
 	@echo "$(GREEN)✓ Cleaned$(RESET)"
 
