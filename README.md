@@ -1,1 +1,79 @@
 # xatu-cbt-api
+
+OpenAPI 3.0 specification generator for Xatu CBT REST API.
+
+## Synopsis
+
+This project generates a comprehensive OpenAPI specification from annotated Protocol Buffer definitions in [xatu-cbt](https://github.com/ethpandaops/xatu-cbt). The tool automatically flattens nested filter parameters into underscore notation and enriches them with field descriptions extracted from proto comments.
+
+The result is a production-ready OpenAPI spec with REST endpoints covering all fact tables, complete with type-safe parameter validation and comprehensive documentation.
+
+## Getting Started
+
+### Quick Start
+
+```bash
+# Install required tools
+make install-tools
+
+# Generate the OpenAPI specification
+make openapi
+
+# Validate the generated spec
+make validate
+
+# View in Swagger UI
+make serve-docs
+```
+
+The generated `openapi.yaml` will be available in the project root.
+
+## Make Commands
+
+| Command | Description |
+|---------|-------------|
+| `make help` | Show all available commands |
+| `make all` | Install tools, build, and generate OpenAPI spec |
+| `make openapi` | Generate OpenAPI specification from proto files |
+| `make build` | Build the openapi-filter-flatten tool |
+| `make validate` | Validate the generated OpenAPI spec |
+| `make serve-docs` | Serve OpenAPI spec with Swagger UI (http://localhost:3001) |
+| `make install-tools` | Install required dependencies (protoc-gen-openapi, etc.) |
+| `make clone-xatu-cbt` | Clone/update xatu-cbt repository for proto files |
+| `make clean` | Remove all generated files and build artifacts |
+| `make fmt` | Format Go code |
+| `make lint` | Run Go linters |
+| `make test` | Run tests |
+
+## API Overview
+
+### Endpoints
+
+All fact tables (`fct_*`) from xatu-cbt are exposed as REST endpoints:
+
+```
+GET /api/v1/fct_attestation_correctness_by_validator_head
+GET /api/v1/fct_block
+GET /api/v1/fct_mev_bid_count_by_builder
+... (54 total endpoints)
+```
+
+### Filter Parameters
+
+Filters use underscore notation with operator suffixes:
+
+```
+?slot_start_date_time_gte=1609459200
+?slot_start_date_time_lte=1609545600
+?attesting_validator_index_eq=12345
+?meta_client_name_in_values=lighthouse,prysm,teku
+```
+
+**Supported operators:**
+- Scalar: `eq`, `ne`, `lt`, `lte`, `gt`, `gte`, `in_values`, `not_in_values`
+- String: `contains`, `starts_with`, `ends_with`, `like`, `not_like`
+- Nullable: `is_null`, `is_not_null`
+- Map: `has_key`, `not_has_key`, `has_any_key`, `has_all_keys`
+
+**Note:** List filters (`_in_values`, `_not_in_values`) use comma-separated strings for better HTTP client compatibility.
+
