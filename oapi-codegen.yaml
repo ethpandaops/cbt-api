@@ -1,0 +1,17 @@
+# oapi-codegen configuration for generating server code
+# See: https://github.com/oapi-codegen/oapi-codegen
+
+package: handlers
+
+generate:
+  models: true           # Generate request/response types
+  embedded-spec: true    # Embed OpenAPI spec in code
+  std-http-server: true  # Generate standard library HTTP server
+  strict-server: false   # Don't use strict server (more flexible)
+
+output-options:
+  skip-prune: true       # Don't prune unused types
+  skip-fmt: false        # Run gofmt on output
+
+# Import mappings for custom types if needed
+import-mapping: {}
