@@ -174,4 +174,5 @@ lint:
 # Run tests
 test:
 	@echo "$(CYAN)==> Running tests...$(RESET)"
-	@go test -v ./...
+	@go install gotest.tools/gotestsum@latest
+	@gotestsum --raw-command go test -v -race -failfast -json ./...
