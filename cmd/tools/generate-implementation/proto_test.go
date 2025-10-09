@@ -1,9 +1,12 @@
 package main
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 func TestToSnakeCase(t *testing.T) {
@@ -445,6 +448,369 @@ func TestGetKnownFilterTypes(t *testing.T) {
 		assert.Contains(t, ft.Operators, "has_any_key")
 		assert.Contains(t, ft.Operators, "has_all_keys")
 	})
+}
+
+func TestParseProtoDescriptors(t *testing.T) {
+	tests := []struct {
+		name          string
+		fds           *descriptorpb.FileDescriptorSet
+		expectedInfo  *ProtoInfo
+		expectedError bool
+	}{
+		{
+			name: "service with List method",
+			fds: &descriptorpb.FileDescriptorSet{
+				File: []*descriptorpb.FileDescriptorProto{
+					{
+						Name:    stringPtr("test.proto"),
+						Package: stringPtr("cbt"),
+						Service: []*descriptorpb.ServiceDescriptorProto{
+							{
+								Name: stringPtr("FctBlockService"),
+								Method: []*descriptorpb.MethodDescriptorProto{
+									{
+										Name:       stringPtr("List"),
+										InputType:  stringPtr(".cbt.ListFctBlockRequest"),
+										OutputType: stringPtr(".cbt.ListFctBlockResponse"),
+									},
+								},
+							},
+						},
+						MessageType: []*descriptorpb.DescriptorProto{
+							{
+								Name: stringPtr("ListFctBlockRequest"),
+								Field: []*descriptorpb.FieldDescriptorProto{
+									{
+										Name:     stringPtr("Slot"),
+										TypeName: stringPtr(".cbt.UInt32Filter"),
+									},
+									{
+										Name:     stringPtr("BlockRoot"),
+										TypeName: stringPtr(".cbt.NullableStringFilter"),
+									},
+								},
+							},
+							{
+								Name: stringPtr("UInt32Filter"),
+							},
+							{
+								Name: stringPtr("NullableStringFilter"),
+							},
+						},
+					},
+				},
+			},
+			expectedInfo: &ProtoInfo{
+				QueryBuilders: map[string]string{
+					"fct_block:List": "BuildListFctBlockQuery",
+				},
+				RequestTypes: map[string]string{
+					"fct_block:List": "ListFctBlockRequest",
+				},
+				ResponseTypes: map[string]string{
+					"fct_block:List": "ListFctBlockResponse",
+				},
+				RequestFields: map[string]map[string]string{
+					"fct_block": {
+						"slot":       "UInt32Filter",
+						"block_root": "NullableStringFilter",
+					},
+				},
+			},
+		},
+		{
+			name: "service with Get method",
+			fds: &descriptorpb.FileDescriptorSet{
+				File: []*descriptorpb.FileDescriptorProto{
+					{
+						Name:    stringPtr("test.proto"),
+						Package: stringPtr("cbt"),
+						Service: []*descriptorpb.ServiceDescriptorProto{
+							{
+								Name: stringPtr("FctBlockService"),
+								Method: []*descriptorpb.MethodDescriptorProto{
+									{
+										Name:       stringPtr("Get"),
+										InputType:  stringPtr(".cbt.GetFctBlockRequest"),
+										OutputType: stringPtr(".cbt.GetFctBlockResponse"),
+									},
+								},
+							},
+						},
+						MessageType: []*descriptorpb.DescriptorProto{
+							{
+								Name: stringPtr("GetFctBlockRequest"),
+							},
+						},
+					},
+				},
+			},
+			expectedInfo: &ProtoInfo{
+				QueryBuilders: map[string]string{
+					"fct_block:Get": "BuildGetFctBlockQuery",
+				},
+				RequestTypes: map[string]string{
+					"fct_block:Get": "GetFctBlockRequest",
+				},
+				ResponseTypes: map[string]string{
+					"fct_block:Get": "GetFctBlockResponse",
+				},
+				RequestFields: map[string]map[string]string{},
+			},
+		},
+		{
+			name: "complex table name with numbers",
+			fds: &descriptorpb.FileDescriptorSet{
+				File: []*descriptorpb.FileDescriptorProto{
+					{
+						Name:    stringPtr("test.proto"),
+						Package: stringPtr("cbt"),
+						Service: []*descriptorpb.ServiceDescriptorProto{
+							{
+								Name: stringPtr("FctNodeActiveLast24HService"),
+								Method: []*descriptorpb.MethodDescriptorProto{
+									{
+										Name:       stringPtr("List"),
+										InputType:  stringPtr(".cbt.ListFctNodeActiveLast24HRequest"),
+										OutputType: stringPtr(".cbt.ListFctNodeActiveLast24HResponse"),
+									},
+								},
+							},
+						},
+						MessageType: []*descriptorpb.DescriptorProto{
+							{
+								Name: stringPtr("ListFctNodeActiveLast24HRequest"),
+								Field: []*descriptorpb.FieldDescriptorProto{
+									{
+										Name:     stringPtr("NodeId"),
+										TypeName: stringPtr(".cbt.StringFilter"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedInfo: &ProtoInfo{
+				QueryBuilders: map[string]string{
+					"fct_node_active_last_24h:List": "BuildListFctNodeActiveLast24HQuery",
+				},
+				RequestTypes: map[string]string{
+					"fct_node_active_last_24h:List": "ListFctNodeActiveLast24HRequest",
+				},
+				ResponseTypes: map[string]string{
+					"fct_node_active_last_24h:List": "ListFctNodeActiveLast24HResponse",
+				},
+				RequestFields: map[string]map[string]string{
+					"fct_node_active_last_24h": {
+						"node_id": "StringFilter",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Marshal the FileDescriptorSet
+			data, err := proto.Marshal(tt.fds)
+			assert.NoError(t, err)
+
+			// Write to temp file
+			tmpFile, err := os.CreateTemp("", "test-descriptor-*.pb")
+			assert.NoError(t, err)
+
+			defer os.Remove(tmpFile.Name())
+
+			_, err = tmpFile.Write(data)
+			assert.NoError(t, err)
+			tmpFile.Close()
+
+			// Parse the descriptors
+			info := &ProtoInfo{
+				FilterTypes:   getKnownFilterTypes(),
+				QueryBuilders: make(map[string]string),
+				RequestTypes:  make(map[string]string),
+				ResponseTypes: make(map[string]string),
+				RequestFields: make(map[string]map[string]string),
+			}
+
+			err = parseProtoDescriptors(tmpFile.Name(), info)
+
+			if tt.expectedError {
+				assert.Error(t, err)
+
+				return
+			}
+
+			assert.NoError(t, err)
+
+			// Verify query builders
+			assert.Equal(t, tt.expectedInfo.QueryBuilders, info.QueryBuilders)
+
+			// Verify request types
+			assert.Equal(t, tt.expectedInfo.RequestTypes, info.RequestTypes)
+
+			// Verify response types
+			assert.Equal(t, tt.expectedInfo.ResponseTypes, info.ResponseTypes)
+
+			// Verify request fields
+			assert.Equal(t, tt.expectedInfo.RequestFields, info.RequestFields)
+		})
+	}
+}
+
+func TestParseProtoDescriptors_Errors(t *testing.T) {
+	info := &ProtoInfo{
+		FilterTypes:   getKnownFilterTypes(),
+		QueryBuilders: make(map[string]string),
+		RequestTypes:  make(map[string]string),
+		ResponseTypes: make(map[string]string),
+		RequestFields: make(map[string]map[string]string),
+	}
+
+	t.Run("file not found", func(t *testing.T) {
+		err := parseProtoDescriptors("/nonexistent/file.pb", info)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "reading descriptor file")
+	})
+
+	t.Run("invalid descriptor data", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp("", "invalid-descriptor-*.pb")
+		assert.NoError(t, err)
+
+		defer os.Remove(tmpFile.Name())
+
+		_, err = tmpFile.WriteString("invalid protobuf data")
+		assert.NoError(t, err)
+		tmpFile.Close()
+
+		err = parseProtoDescriptors(tmpFile.Name(), info)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unmarshaling descriptor")
+	})
+}
+
+func TestAnalyzeProtos(t *testing.T) {
+	// Save original working directory
+	originalWd, err := os.Getwd()
+	assert.NoError(t, err)
+
+	// Create a temporary directory for test
+	tmpDir, err := os.CreateTemp("", "analyze-protos-test-*")
+	assert.NoError(t, err)
+	tmpDir.Close()
+	os.Remove(tmpDir.Name())
+
+	err = os.Mkdir(tmpDir.Name(), 0755)
+	assert.NoError(t, err)
+
+	defer func() {
+		_ = os.Chdir(originalWd)
+		os.RemoveAll(tmpDir.Name())
+	}()
+
+	// Change to temp directory
+	err = os.Chdir(tmpDir.Name())
+	assert.NoError(t, err)
+
+	t.Run("success with valid descriptor file", func(t *testing.T) {
+		// Create a valid descriptor file
+		fds := &descriptorpb.FileDescriptorSet{
+			File: []*descriptorpb.FileDescriptorProto{
+				{
+					Name:    stringPtr("test.proto"),
+					Package: stringPtr("cbt"),
+					Service: []*descriptorpb.ServiceDescriptorProto{
+						{
+							Name: stringPtr("FctBlockService"),
+							Method: []*descriptorpb.MethodDescriptorProto{
+								{
+									Name:       stringPtr("List"),
+									InputType:  stringPtr(".cbt.ListFctBlockRequest"),
+									OutputType: stringPtr(".cbt.ListFctBlockResponse"),
+								},
+							},
+						},
+					},
+					MessageType: []*descriptorpb.DescriptorProto{
+						{
+							Name: stringPtr("ListFctBlockRequest"),
+							Field: []*descriptorpb.FieldDescriptorProto{
+								{
+									Name:     stringPtr("Slot"),
+									TypeName: stringPtr(".cbt.UInt32Filter"),
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		data, err := proto.Marshal(fds)
+		assert.NoError(t, err)
+
+		err = os.WriteFile(".descriptors.pb", data, 0644)
+		assert.NoError(t, err)
+
+		defer os.Remove(".descriptors.pb")
+
+		// Run analyzeProtos
+		info, err := analyzeProtos("")
+		assert.NoError(t, err)
+		assert.NotNil(t, info)
+
+		// Verify filter types are populated
+		assert.NotEmpty(t, info.FilterTypes)
+		assert.Contains(t, info.FilterTypes, "UInt32Filter")
+
+		// Verify query builders are extracted
+		assert.Contains(t, info.QueryBuilders, "fct_block:List")
+		assert.Equal(t, "BuildListFctBlockQuery", info.QueryBuilders["fct_block:List"])
+
+		// Verify request types
+		assert.Contains(t, info.RequestTypes, "fct_block:List")
+		assert.Equal(t, "ListFctBlockRequest", info.RequestTypes["fct_block:List"])
+
+		// Verify response types
+		assert.Contains(t, info.ResponseTypes, "fct_block:List")
+		assert.Equal(t, "ListFctBlockResponse", info.ResponseTypes["fct_block:List"])
+
+		// Verify request fields
+		assert.Contains(t, info.RequestFields, "fct_block")
+		assert.Contains(t, info.RequestFields["fct_block"], "slot")
+		assert.Equal(t, "UInt32Filter", info.RequestFields["fct_block"]["slot"])
+	})
+
+	t.Run("error when descriptor file missing", func(t *testing.T) {
+		// Ensure no descriptor file exists
+		os.Remove(".descriptors.pb")
+
+		info, err := analyzeProtos("")
+		assert.Error(t, err)
+		assert.Nil(t, info)
+		assert.Contains(t, err.Error(), "parsing proto descriptors")
+		assert.Contains(t, err.Error(), "ensure 'make generate-descriptors' has been run")
+	})
+
+	t.Run("error with invalid descriptor file", func(t *testing.T) {
+		// Create invalid descriptor file
+		err := os.WriteFile(".descriptors.pb", []byte("invalid data"), 0644)
+		assert.NoError(t, err)
+
+		defer os.Remove(".descriptors.pb")
+
+		info, err := analyzeProtos("")
+		assert.Error(t, err)
+		assert.Nil(t, info)
+		assert.Contains(t, err.Error(), "parsing proto descriptors")
+	})
+}
+
+// Helper function for creating string pointers in tests.
+func stringPtr(s string) *string {
+	return &s
 }
 
 // Helper function for test.
