@@ -12,10 +12,12 @@ Generates from [xatu-cbt](https://github.com/ethpandaops/xatu-cbt) proto definit
 ## Quick Start
 
 ```bash
-make install-tools    # Install dependencies
-make generate-server  # Generate OpenAPI spec + server code
-make serve-docs       # View in Swagger UI (localhost:3001)
+make install-tools  # One-time setup: install dependencies
+make generate       # Generate OpenAPI spec + server code
+make run            # Build and run the server
 ```
+
+Visit `http://localhost:8080/docs` to explore the API via Swagger UI.
 
 Generates:
 - `openapi.yaml` - OpenAPI spec
@@ -24,35 +26,16 @@ Generates:
 
 ## Make Commands
 
-### Code Generation
-
 | Command | Description |
 |---------|-------------|
-| `make help` | Show all available commands |
-| `make all` | Install tools, build, and generate OpenAPI spec and server code |
-| `make clone-xatu-cbt` | Clone/update xatu-cbt repository for proto files |
-| `make openapi` | Generate OpenAPI specification from proto files |
-| `make generate-descriptors` | Generate protobuf descriptor file for robust parsing |
-| `make generate-server` | Generate Go server interface and implementation from OpenAPI specification |
-| `make build` | Build the openapi-filter-flatten tool |
-| `make install-tools` | Install required dependencies (protoc-gen-openapi, oapi-codegen, etc.) |
-
-### Server Runtime
-
-| Command | Description |
-|---------|-------------|
-| `make build-server` | Build the API server binary (bin/server) |
-| `make run-server` | Build and run the API server |
-
-### Development
-
-| Command | Description |
-|---------|-------------|
-| `make validate` | Validate the generated OpenAPI spec |
-| `make serve-docs` | Serve OpenAPI spec with Swagger UI (http://localhost:3001) |
-| `make clean` | Remove all generated files and build artifacts |
+| `make help` | Show available commands |
+| `make install-tools` | One-time setup: install required dependencies |
+| `make generate` | Generate OpenAPI spec and server code |
+| `make build` | Build the API server binary |
+| `make run` | Build and run the API server |
+| `make clean` | Remove generated files and build artifacts |
 | `make fmt` | Format Go code |
-| `make lint` | Run Go linters |
+| `make lint` | Run linters |
 | `make test` | Run tests |
 
 ## API Overview
@@ -91,17 +74,23 @@ Filters use underscore notation with operator suffixes:
 
 ### Configuration
 
-Copy `config.example.yaml` to `config.yaml` file.
+Copy `config.example.yaml` to `config.yaml` and configure your ClickHouse connection:
+
+```yaml
+clickhouse:
+  dsn: "clickhouse://user:password@localhost:9000"
+  database: "mainnet"
+```
 
 ### Starting the Server
 
 ```bash
-# Build and run
-make all && make run-server
+# One-time setup
+make install-tools
 
-# Or build separately
-make build-server
-./bin/server
+# Generate code and run
+make generate
+make run
 ```
 
 The server provides:

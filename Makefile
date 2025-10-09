@@ -1,4 +1,4 @@
-.PHONY: help openapi clean build install-tools test fmt lint all clone-xatu-cbt build-server run-server
+.PHONY: help install-tools generate build run clean fmt lint test
 
 # Colors for output
 CYAN := \033[0;36m
@@ -22,15 +22,50 @@ POSTPROCESS_TOOL := ./cmd/tools/openapi-postprocess
 # Get googleapis path
 GOOGLEAPIS_PATH := $(shell go list -m -f '{{.Dir}}' github.com/googleapis/googleapis 2>/dev/null || echo "")
 
+.DEFAULT_GOAL := help
+
 help: ## Show this help message
 	@echo "$(CYAN)xatu-cbt-api Makefile$(RESET)"
 	@echo ""
-	@echo "$(GREEN)Available targets:$(RESET)"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-20s$(RESET) %s\n", $$1, $$2}'
+	@echo "$(GREEN)Main workflow:$(RESET)"
+	@echo "  $(CYAN)make install-tools$(RESET)  # One-time setup: install required dependencies"
+	@echo "  $(CYAN)make generate$(RESET)       # Generate OpenAPI spec and server code"
+	@echo "  $(CYAN)make build$(RESET)          # Build the API server binary"
+	@echo "  $(CYAN)make run$(RESET)            # Run the API server"
+	@echo ""
+	@echo "$(GREEN)Development:$(RESET)"
+	@echo "  $(CYAN)make clean$(RESET)          # Remove generated files and build artifacts"
+	@echo "  $(CYAN)make fmt$(RESET)            # Format Go code"
+	@echo "  $(CYAN)make lint$(RESET)           # Run linters"
+	@echo "  $(CYAN)make test$(RESET)           # Run tests"
 
-all: install-tools build openapi generate-server ## Install tools, build, generate OpenAPI and server code
+# Install required development tools (one-time setup)
+install-tools:
+	@echo "$(CYAN)==> Installing required tools...$(RESET)"
+	@go install github.com/kollalabs/protoc-gen-openapi@latest
+	@go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+	@go get github.com/getkin/kin-openapi/openapi3@latest
+	@go get github.com/googleapis/googleapis@latest
+	@go get gopkg.in/yaml.v3@latest
+	@echo "$(GREEN)✓ Tools installed$(RESET)"
 
-clone-xatu-cbt: ## Clone xatu-cbt repository for proto files
+# Generate all code (OpenAPI spec + server implementation)
+generate: .clone-xatu-cbt .build-tools .openapi .generate-descriptors .generate-server
+	@echo "$(GREEN)✓ Code generation complete$(RESET)"
+
+# Build the API server binary
+build:
+	@echo "$(CYAN)==> Building API server...$(RESET)"
+	@go build -o bin/server ./cmd/server
+	@echo "$(GREEN)✓ Server built: bin/server$(RESET)"
+
+# Run the API server
+run: build
+	@echo "$(CYAN)==> Starting API server...$(RESET)"
+	@./bin/server
+
+# Internal targets (not meant to be called directly)
+.clone-xatu-cbt:
 	@if [ -d "$(XATU_CBT_DIR)" ]; then \
 		echo "$(YELLOW)==> Updating xatu-cbt repository...$(RESET)"; \
 		cd $(XATU_CBT_DIR) && git fetch origin && git checkout $(XATU_CBT_VERSION) 2>/dev/null || true; \
@@ -40,7 +75,12 @@ clone-xatu-cbt: ## Clone xatu-cbt repository for proto files
 	fi
 	@echo "$(GREEN)✓ xatu-cbt repository ready at $(XATU_CBT_VERSION)$(RESET)"
 
-openapi: build clone-xatu-cbt ## Generate OpenAPI specification from proto files
+.build-tools:
+	@echo "$(CYAN)==> Building code generation tools...$(RESET)"
+	@go build -o bin/openapi-preprocess $(PREPROCESS_TOOL)
+	@echo "$(GREEN)✓ Built: bin/openapi-preprocess$(RESET)"
+
+.openapi: .build-tools .clone-xatu-cbt
 	@echo "$(CYAN)==> Generating OpenAPI 3.0 from annotated protos...$(RESET)"
 	@mkdir -p $(TMP_DIR)
 	@if [ -z "$(GOOGLEAPIS_PATH)" ]; then \
@@ -62,7 +102,7 @@ openapi: build clone-xatu-cbt ## Generate OpenAPI specification from proto files
 		--proto-path $(PROTO_PATH)
 	@echo "$(GREEN)✓ OpenAPI spec generated: $(OUTPUT_FILE)$(RESET)"
 
-generate-descriptors: clone-xatu-cbt ## Generate protobuf descriptor file for robust parsing
+.generate-descriptors: .clone-xatu-cbt
 	@echo "$(CYAN)==> Generating protobuf descriptors...$(RESET)"
 	@GOOGLEAPIS_PATH=$$(go list -m -f '{{.Dir}}' github.com/googleapis/googleapis); \
 	protoc \
@@ -73,7 +113,7 @@ generate-descriptors: clone-xatu-cbt ## Generate protobuf descriptor file for ro
 		$(XATU_CBT_DIR)/pkg/proto/clickhouse/*.proto
 	@echo "$(GREEN)✓ Protobuf descriptors generated: .descriptors.pb$(RESET)"
 
-generate-server: openapi generate-descriptors ## Generate Go server code from OpenAPI specification
+.generate-server: .openapi .generate-descriptors
 	@echo "$(CYAN)==> Generating server interface from OpenAPI spec...$(RESET)"
 	@mkdir -p internal/handlers
 	@oapi-codegen --config oapi-codegen.yaml openapi.yaml > internal/handlers/generated.go
@@ -88,38 +128,26 @@ generate-server: openapi generate-descriptors ## Generate Go server code from Op
 		--output internal/server/implementation.go
 	@echo "$(GREEN)✓ Server implementation generated: internal/server/implementation.go$(RESET)"
 
-build: ## Build the openapi-preprocess tool
-	@echo "$(CYAN)==> Building openapi-preprocess tool...$(RESET)"
-	@go build -o bin/openapi-preprocess $(PREPROCESS_TOOL)
-	@echo "$(GREEN)✓ Built: bin/openapi-preprocess$(RESET)"
-
-install-tools: ## Install required tools (protoc-gen-openapi, oapi-codegen)
-	@echo "$(CYAN)==> Installing required tools...$(RESET)"
-	@go install github.com/kollalabs/protoc-gen-openapi@latest
-	@go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
-	@go get github.com/getkin/kin-openapi/openapi3@latest
-	@go get github.com/googleapis/googleapis@latest
-	@go get gopkg.in/yaml.v3@latest
-	@echo "$(GREEN)✓ Tools installed$(RESET)"
-
-deps: install-tools ## Alias for install-tools
-
-clean: ## Remove generated files and build artifacts
+# Clean generated files and build artifacts
+clean:
 	@echo "$(CYAN)==> Cleaning generated files...$(RESET)"
 	@rm -rf $(TMP_DIR)
 	@rm -f $(OUTPUT_FILE)
+	@rm -f .descriptors.pb
 	@rm -rf bin/
-	@rm -rf internal/handlers/generated.go
-	@rm -rf internal/server/implementation.go
+	@rm -f internal/handlers/generated.go
+	@rm -f internal/server/implementation.go
 	@rm -rf $(XATU_CBT_DIR)
 	@echo "$(GREEN)✓ Cleaned$(RESET)"
 
-fmt: ## Format Go code
+# Format Go code
+fmt:
 	@echo "$(CYAN)==> Formatting Go code...$(RESET)"
 	@go fmt ./...
 	@echo "$(GREEN)✓ Formatted$(RESET)"
 
-lint: ## Run linters
+# Run linters
+lint:
 	@echo "$(CYAN)==> Running linters...$(RESET)"
 	@if command -v golangci-lint >/dev/null 2>&1; then \
 		golangci-lint run ./...; \
@@ -127,45 +155,7 @@ lint: ## Run linters
 		echo "$(YELLOW)golangci-lint not installed, skipping...$(RESET)"; \
 	fi
 
-test: ## Run tests
+# Run tests
+test:
 	@echo "$(CYAN)==> Running tests...$(RESET)"
 	@go test -v ./...
-
-validate: openapi ## Validate the generated OpenAPI spec
-	@echo "$(CYAN)==> Validating OpenAPI spec...$(RESET)"
-	@if command -v python3 >/dev/null 2>&1; then \
-		python3 -c "import yaml; yaml.safe_load(open('$(OUTPUT_FILE)'))" && \
-		echo "$(GREEN)✓ OpenAPI spec is valid YAML$(RESET)"; \
-	else \
-		echo "$(YELLOW)Python3 not found, skipping validation$(RESET)"; \
-	fi
-
-serve-docs: openapi ## Serve OpenAPI spec with Swagger UI
-	@echo "$(CYAN)==> Starting Swagger UI...$(RESET)"
-	@docker run --rm -d -p 3001:8080 \
-		-v $(PWD)/$(OUTPUT_FILE):/openapi.yaml \
-		-e SWAGGER_JSON=/openapi.yaml \
-		--name xatu-cbt-api-docs \
-		swaggerapi/swagger-ui >/dev/null
-	@echo "$(YELLOW)Waiting for Swagger UI to be ready...$(RESET)"
-	@for i in 1 2 3 4 5 6 7 8 9 10; do \
-		if curl -s http://localhost:3001 >/dev/null 2>&1; then \
-			echo "$(GREEN)✓ Swagger UI running at http://localhost:3001$(RESET)"; \
-			open http://localhost:3001 || xdg-open http://localhost:3001 || echo "$(YELLOW)Please open http://localhost:3001 in your browser$(RESET)"; \
-			echo "$(YELLOW)To stop: docker stop xatu-cbt-api-docs$(RESET)"; \
-			exit 0; \
-		fi; \
-		sleep 1; \
-	done; \
-	echo "$(RED)Failed to start Swagger UI$(RESET)"; exit 1
-
-build-server: ## Build the API server binary
-	@echo "$(CYAN)==> Building API server...$(RESET)"
-	@go build -o bin/server ./cmd/server
-	@echo "$(GREEN)✓ Server built: bin/server$(RESET)"
-
-run-server: build-server ## Build and run the API server
-	@echo "$(CYAN)==> Starting API server...$(RESET)"
-	@./bin/server
-
-.DEFAULT_GOAL := help
