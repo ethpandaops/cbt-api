@@ -8,6 +8,11 @@ import (
 	"strings"
 )
 
+const (
+	colorGreen = "\033[0;32m"
+	colorReset = "\033[0m"
+)
+
 func main() {
 	input := flag.String("input", "", "Input file path")
 	output := flag.String("output", "", "Output file path (defaults to input)")
@@ -36,7 +41,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("✓ Added ch tags to %s\n", *output)
+	fmt.Printf("%s✓ Added ch tags to %s%s\n", colorGreen, *output, colorReset)
 }
 
 // addChTags adds ch:"..." tags to struct fields that have json:"..." tags.

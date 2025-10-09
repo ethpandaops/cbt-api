@@ -34,6 +34,11 @@ type WrapperTypeMapping struct {
 // Constants
 // ============================================================================
 
+const (
+	colorGreen = "\033[0;32m"
+	colorReset = "\033[0m"
+)
+
 // Mapping of google.protobuf wrapper types to correct OpenAPI type/format.
 // protoc-gen-openapi generates incorrect mappings, causing oapi-codegen to
 // generate wrong Go types that break ClickHouse scanning.
@@ -83,8 +88,6 @@ func main() {
 		fieldTypes = make(ProtoFieldTypes)
 	}
 
-	fmt.Printf("Loaded proto data: %d services, %d wrapper type fields\n", len(descriptions), len(fieldTypes))
-
 	// Load OpenAPI spec
 	loader := openapi3.NewLoader()
 
@@ -95,13 +98,7 @@ func main() {
 	}
 
 	// Apply transformations
-	stats := applyTransformations(doc, descriptions, fieldTypes)
-
-	// Print statistics
-	fmt.Printf("Transformations applied:\n")
-	fmt.Printf("  - Flattened %d filter parameters\n", stats.FiltersFlatted)
-	fmt.Printf("  - Fixed %d schema names\n", stats.SchemasFixed)
-	fmt.Printf("  - Fixed %d wrapper type mappings\n", stats.TypesFixed)
+	_ = applyTransformations(doc, descriptions, fieldTypes)
 
 	// Write output
 	if err := writeOpenAPIYAML(doc, *output); err != nil {
@@ -109,7 +106,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("✓ Wrote processed OpenAPI to %s\n", *output)
+	fmt.Printf("%s✓ Wrote processed OpenAPI to %s%s\n", colorGreen, *output, colorReset)
 }
 
 // ============================================================================

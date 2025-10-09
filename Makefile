@@ -84,7 +84,7 @@ run: build
 		cd $(XATU_CBT_DIR) && git fetch origin && git checkout $(XATU_CBT_VERSION) 2>/dev/null || true; \
 	else \
 		echo "$(CYAN)==> Cloning xatu-cbt repository (commit: $(XATU_CBT_VERSION))...$(RESET)"; \
-		git clone $(XATU_CBT_REPO) $(XATU_CBT_DIR) && cd $(XATU_CBT_DIR) && git checkout $(XATU_CBT_VERSION); \
+		git clone $(XATU_CBT_REPO) $(XATU_CBT_DIR) > /dev/null 2>&1 && cd $(XATU_CBT_DIR) && git checkout $(XATU_CBT_VERSION) > /dev/null 2>&1; \
 	fi
 	@echo "$(GREEN)✓ xatu-cbt repository ready at $(XATU_CBT_VERSION)$(RESET)"
 
@@ -101,19 +101,19 @@ run: build
 		go get github.com/googleapis/googleapis@latest; \
 	fi
 	@GOOGLEAPIS_PATH=$$(go list -m -f '{{.Dir}}' github.com/googleapis/googleapis); \
-	echo "$(YELLOW)Using googleapis: $$GOOGLEAPIS_PATH$(RESET)"; \
 	protoc \
 		--openapi_out=$(TMP_DIR) \
 		--openapi_opt=naming=proto \
 		--proto_path=$(PROTO_PATH) \
 		--proto_path=$$GOOGLEAPIS_PATH \
 		$(PROTO_PATH)/*.proto
+	@echo "$(GREEN)✓ OpenAPI spec generated: $(OUTPUT_FILE)$(RESET)"
 	@echo "$(CYAN)==> Pre-processing OpenAPI spec...$(RESET)"
 	@go run $(PREPROCESS_TOOL) \
 		--input $(TMP_DIR)/openapi.yaml \
 		--output $(OUTPUT_FILE) \
 		--proto-path $(PROTO_PATH)
-	@echo "$(GREEN)✓ OpenAPI spec generated: $(OUTPUT_FILE)$(RESET)"
+	@echo "$(GREEN)✓ Pre-processed spec generated: $(OUTPUT_FILE)$(RESET)"
 
 .generate-descriptors: .clone-xatu-cbt
 	@echo "$(CYAN)==> Generating protobuf descriptors...$(RESET)"
@@ -130,7 +130,7 @@ run: build
 	@echo "$(CYAN)==> Generating server interface from OpenAPI spec...$(RESET)"
 	@mkdir -p internal/handlers
 	@oapi-codegen --config oapi-codegen.yaml openapi.yaml > internal/handlers/generated.go
-	@echo "$(CYAN)==> Post-processing generated code (adding ClickHouse tags)...$(RESET)"
+	@echo "$(CYAN)==> Post-processing generated code...$(RESET)"
 	@go run $(POSTPROCESS_TOOL) --input internal/handlers/generated.go
 	@echo "$(GREEN)✓ Server interface generated: internal/handlers/generated.go$(RESET)"
 	@echo "$(CYAN)==> Generating server implementation...$(RESET)"

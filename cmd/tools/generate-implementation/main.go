@@ -8,6 +8,11 @@ import (
 	"strings"
 )
 
+const (
+	colorGreen = "\033[0;32m"
+	colorReset = "\033[0m"
+)
+
 func main() {
 	// Parse flags
 	openapiPath := flag.String("openapi", "openapi.yaml", "Path to OpenAPI spec")
@@ -16,11 +21,6 @@ func main() {
 	output := flag.String("output", "internal/server/implementation.go", "Output file")
 	flag.Parse()
 
-	fmt.Printf("Generating implementation from:\n")
-	fmt.Printf("  OpenAPI: %s\n", *openapiPath)
-	fmt.Printf("  Protos:  %s\n", *protoPath)
-	fmt.Printf("  Output:  %s\n", *output)
-
 	// 1. Load OpenAPI spec
 	spec, err := loadOpenAPI(*openapiPath)
 	if err != nil {
@@ -28,17 +28,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Loaded OpenAPI spec: %d endpoints\n", len(spec.Endpoints))
-
 	// 2. Analyze proto files
 	protoInfo, err := analyzeProtos(*protoPath)
 	if err != nil {
 		fmt.Printf("Error analyzing protos: %v\n", err)
 		os.Exit(1)
 	}
-
-	fmt.Printf("Analyzed protos: %d filter types, %d query builders, %d request field mappings\n",
-		len(protoInfo.FilterTypes), len(protoInfo.QueryBuilders), len(protoInfo.RequestFields))
 
 	// 3. Generate code
 	generator := &CodeGenerator{
@@ -60,5 +55,5 @@ func main() {
 	}
 
 	lines := len(strings.Split(code, "\n"))
-	fmt.Printf("✓ Generated %d lines: %s\n", lines, *output)
+	fmt.Printf("%s✓ Generated %d lines: %s%s\n", colorGreen, lines, *output, colorReset)
 }
