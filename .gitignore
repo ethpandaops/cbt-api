@@ -25,6 +25,7 @@ go.work
 .env
 .env.local
 .env.*.local
+config.yaml
 
 # IDEs and editors
 .vscode/

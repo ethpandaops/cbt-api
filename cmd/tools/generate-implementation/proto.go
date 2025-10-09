@@ -129,9 +129,10 @@ func parseProtoDescriptors(descriptorPath string, info *ProtoInfo) error {
 		}
 
 		// Parse message types for request field information
+		// Only process List requests, as Get requests don't have filter fields
 		for _, msgType := range file.GetMessageType() {
 			msgName := msgType.GetName()
-			if !strings.HasSuffix(msgName, "Request") {
+			if !strings.HasPrefix(msgName, "List") || !strings.HasSuffix(msgName, "Request") {
 				continue
 			}
 
@@ -187,8 +188,26 @@ func extractTableNameFromMessage(msgName string) string {
 // Example: ".cbt.ListFctBlockRequest" → "ListFctBlockRequest".
 func cleanTypeName(typeName string) string {
 	parts := strings.Split(typeName, ".")
+	name := parts[len(parts)-1]
 
-	return parts[len(parts)-1]
+	// Apply protoc's capitalization rules: numbers followed by letters get capitalized
+	// "ListFctAttestationFirstSeenChunked50msRequest" -> "ListFctAttestationFirstSeenChunked50MsRequest"
+	// "ListFctNodeActiveLast24hRequest" -> "ListFctNodeActiveLast24HRequest"
+	return normalizeProtoTypeName(name)
+}
+
+// normalizeProtoTypeName applies the same capitalization rules that protoc uses for Go code generation.
+// Specifically, it capitalizes letters that immediately follow digits in identifiers.
+func normalizeProtoTypeName(name string) string {
+	runes := []rune(name)
+	for i := 1; i < len(runes); i++ {
+		// If previous char is a digit and current char is a lowercase letter, capitalize it
+		if runes[i-1] >= '0' && runes[i-1] <= '9' && runes[i] >= 'a' && runes[i] <= 'z' {
+			runes[i] = runes[i] - 32 // Convert to uppercase
+		}
+	}
+
+	return string(runes)
 }
 
 // getFieldTypeFromDescriptor gets the field type name from a field descriptor.
