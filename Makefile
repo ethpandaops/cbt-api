@@ -139,6 +139,8 @@ run: build
 		--openapi openapi.yaml \
 		--proto-path $(XATU_CBT_DIR)/pkg/proto/clickhouse \
 		--output internal/server/implementation.go
+	@echo "$(CYAN)==> Copying OpenAPI spec for embedding...$(RESET)"
+	@cp openapi.yaml internal/server/openapi.yaml
 	@echo "$(GREEN)✓ Server implementation generated: internal/server/implementation.go$(RESET)"
 
 # Clean generated files and build artifacts
@@ -150,6 +152,7 @@ clean:
 	@rm -rf bin/
 	@rm -f internal/handlers/generated.go
 	@rm -f internal/server/implementation.go
+	@rm -f internal/server/openapi.yaml
 	@rm -rf $(XATU_CBT_DIR)
 	@echo "$(GREEN)✓ Cleaned$(RESET)"
 
