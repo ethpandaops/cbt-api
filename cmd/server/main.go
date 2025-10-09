@@ -38,9 +38,14 @@ func main() {
 	// Start server
 	go func() {
 		logger.WithField("port", cfg.Server.Port).Info("Starting server")
+		logger.WithField("url", "/health").Info("Health endpoint")
+		logger.WithField("url", "/metrics").Info("Metrics endpoint")
+		logger.WithField("url", "/docs/").Info("Docs endpoint")
+		logger.WithField("url", "/openapi.yaml").Info("OpenAPI spec endpoint")
+		logger.Info("Server ready, accepting connections")
 
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.WithError(err).Error("Server error")
+			logger.WithError(err).Fatal("Server error")
 		}
 	}()
 

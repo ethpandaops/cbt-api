@@ -66,7 +66,7 @@ func NewClient(cfg *config.ClickHouseConfig, logger logrus.FieldLogger) (*Client
 	log.WithFields(logrus.Fields{
 		"database": cfg.Database,
 		"host":     parsedDSN.Host,
-	}).Info("ClickHouse client connected successfully")
+	}).Info("ClickHouse client initialised")
 
 	return &Client{
 		conn:   conn,
