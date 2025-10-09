@@ -26,13 +26,13 @@ func New(cfg *config.Config, logger logrus.FieldLogger) (*http.Server, error) {
 		return nil, fmt.Errorf("failed to create ClickHouse client: %w", err)
 	}
 
-	// Create server implementation (generated in Plan 2.5)
+	// Create generated server implementation.
 	impl := &Server{
 		db:     db,
 		config: cfg,
 	}
 
-	// Setup router using Go 1.22+ http.ServeMux with method routing
+	// Setup router using native http.ServeMux with method routing
 	mux := http.NewServeMux()
 
 	// Health & metrics endpoints
@@ -52,8 +52,7 @@ func New(cfg *config.Config, logger logrus.FieldLogger) (*http.Server, error) {
 		httpSwagger.URL("/openapi.yaml"),
 	))
 
-	// Register generated API handlers (from Plan 2)
-	// oapi-codegen generates a HandlerFromMux function that works with http.ServeMux
+	// Register generated API handlers
 	handlers.HandlerFromMux(impl, mux)
 
 	// Apply middleware stack (wrap the mux)
@@ -61,6 +60,7 @@ func New(cfg *config.Config, logger logrus.FieldLogger) (*http.Server, error) {
 	handler = middleware.CORS()(handler)
 	handler = middleware.Recovery(logger)(handler)
 	handler = middleware.Metrics()(handler)
+	handler = middleware.Gzip()(handler)
 
 	return &http.Server{
 		Addr:    fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),

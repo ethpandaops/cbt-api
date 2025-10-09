@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	clickhouse "github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/ethpandaops/xatu-cbt-api/internal/config"
 	"github.com/sirupsen/logrus"
@@ -162,7 +162,7 @@ func createClickHouseOptions(cfg *config.ClickHouseConfig, parsedURL *url.URL) *
 	// Add TLS if using HTTPS
 	if strings.HasPrefix(parsedURL.Scheme, "https") || parsedURL.Port() == "9440" {
 		options.TLS = &tls.Config{
-			InsecureSkipVerify: cfg.InsecureSkipVerify, //nolint:gosec // configurable for development environments
+			InsecureSkipVerify: cfg.InsecureSkipVerify, //nolint:gosec // config for dev environments
 		}
 	}
 
