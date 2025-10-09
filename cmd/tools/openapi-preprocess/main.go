@@ -228,6 +228,7 @@ func parseProtoFile(filename string, descriptions ProtoDescriptions, fieldTypes 
 				fieldName := matches[1]
 				descriptions[serviceNameLower][fieldName] = lastComment
 				lastComment = ""
+
 				continue
 			}
 		}
@@ -246,6 +247,7 @@ func extractServiceName(content []byte) string {
 	if matches := servicePattern.FindSubmatch(content); matches != nil {
 		return string(matches[1])
 	}
+
 	return ""
 }
 

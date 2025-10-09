@@ -7,7 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Logging returns a middleware that logs HTTP requests
+// Logging returns a middleware that logs HTTP requests.
 func Logging(logger logrus.FieldLogger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

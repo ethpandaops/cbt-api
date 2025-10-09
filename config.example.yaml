@@ -1,6 +1,10 @@
 server:
   port: 8080
   host: 0.0.0.0
+  read_header_timeout: 10s
+  read_timeout: 30s
+  write_timeout: 30s
+  idle_timeout: 120s
 
 clickhouse:
   dsn: "https://user:pass@host"

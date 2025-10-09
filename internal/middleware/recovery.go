@@ -7,7 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Recovery returns a middleware that recovers from panics
+// Recovery returns a middleware that recovers from panics.
 func Recovery(logger logrus.FieldLogger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

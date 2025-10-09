@@ -6,7 +6,7 @@ import (
 	"github.com/rs/cors"
 )
 
-// CORS returns a middleware that handles CORS headers
+// CORS returns a middleware that handles CORS headers.
 func CORS() func(http.Handler) http.Handler {
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
@@ -14,5 +14,6 @@ func CORS() func(http.Handler) http.Handler {
 		AllowedHeaders: []string{"*"},
 		MaxAge:         86400, // 24 hours
 	})
+
 	return c.Handler
 }

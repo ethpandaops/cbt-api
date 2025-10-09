@@ -63,7 +63,11 @@ func New(cfg *config.Config, logger logrus.FieldLogger) (*http.Server, error) {
 	handler = middleware.Gzip()(handler)
 
 	return &http.Server{
-		Addr:    fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
-		Handler: handler,
+		Addr:              fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
+		Handler:           handler,
+		ReadHeaderTimeout: cfg.Server.ReadHeaderTimeout,
+		ReadTimeout:       cfg.Server.ReadTimeout,
+		WriteTimeout:      cfg.Server.WriteTimeout,
+		IdleTimeout:       cfg.Server.IdleTimeout,
 	}, nil
 }
