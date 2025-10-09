@@ -15,6 +15,11 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.ref }}
           token: ${{ secrets.PANDA_OPS_BOT_PAT }}
+      - uses: ./.github/workflows/go-setup
+      - name: Install tools
+        run: make install-tools
+      - name: Generate code
+        run: make generate
       - name: Get latest release version for this release branch
         if: startsWith(github.ref, 'refs/heads/release/')
         id: latest_version
