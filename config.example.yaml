@@ -1,0 +1,16 @@
+server:
+  port: 8080
+  host: 0.0.0.0
+
+clickhouse:
+  dsn: "https://user:pass@host"
+  database: "mainnet"
+  use_final: true
+  max_open_conns: 10
+  max_idle_conns: 5
+  conn_max_lifetime: 60s
+  dial_timeout: 10s
+  read_timeout: 30s
+  write_timeout: 30s
+  max_execution_time: 60
+  insecure_skip_verify: false

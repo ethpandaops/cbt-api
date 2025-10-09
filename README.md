@@ -24,18 +24,32 @@ Generates:
 
 ## Make Commands
 
+### Code Generation
+
 | Command | Description |
 |---------|-------------|
 | `make help` | Show all available commands |
 | `make all` | Install tools, build, and generate OpenAPI spec and server code |
+| `make clone-xatu-cbt` | Clone/update xatu-cbt repository for proto files |
 | `make openapi` | Generate OpenAPI specification from proto files |
 | `make generate-descriptors` | Generate protobuf descriptor file for robust parsing |
 | `make generate-server` | Generate Go server interface and implementation from OpenAPI specification |
 | `make build` | Build the openapi-filter-flatten tool |
+| `make install-tools` | Install required dependencies (protoc-gen-openapi, oapi-codegen, etc.) |
+
+### Server Runtime
+
+| Command | Description |
+|---------|-------------|
+| `make build-server` | Build the API server binary (bin/server) |
+| `make run-server` | Build and run the API server |
+
+### Development
+
+| Command | Description |
+|---------|-------------|
 | `make validate` | Validate the generated OpenAPI spec |
 | `make serve-docs` | Serve OpenAPI spec with Swagger UI (http://localhost:3001) |
-| `make install-tools` | Install required dependencies (protoc-gen-openapi, oapi-codegen, etc.) |
-| `make clone-xatu-cbt` | Clone/update xatu-cbt repository for proto files |
 | `make clean` | Remove all generated files and build artifacts |
 | `make fmt` | Format Go code |
 | `make lint` | Run Go linters |
@@ -73,6 +87,30 @@ Filters use underscore notation with operator suffixes:
 
 **Note:** List filters (`_in_values`, `_not_in_values`) use comma-separated strings.
 
+## Running the Server
+
+### Configuration
+
+Copy `config.example.yaml` to `config.yaml` file.
+
+### Starting the Server
+
+```bash
+# Build and run
+make all && make run-server
+
+# Or build separately
+make build-server
+./bin/server
+```
+
+The server provides:
+- **API endpoints** at `/api/v1/*`
+- **Health check** at `/health`
+- **Metrics** at `/metrics`
+- **OpenAPI spec** at `/openapi.yaml`
+- **Swagger UI** at `/docs/`
+
 ## Server Implementation
 
 The server implementation is **automatically generated** from proto descriptors:
@@ -104,21 +142,6 @@ func (s *Server) FctBlockServiceList(w http.ResponseWriter, r *http.Request, par
 - ClickHouse execution + result scanning
 - Proto → OpenAPI type conversion
 
-### Usage
-
-```go
-// Wire up the generated server
-db := clickhouse.OpenDB(&clickhouse.Options{...})
-config := &server.Config{
-    ClickHouse: server.ClickHouseConfig{Database: "default", UseFinal: true},
-}
-srv := server.NewServer(db, config)
-
-// Start HTTP server
-handler := handlers.Handler(srv)
-http.ListenAndServe(":8080", handler)
-```
-
 ## How It Works
 
 **Generation pipeline:**
@@ -138,8 +161,6 @@ http.ListenAndServe(":8080", handler)
 
 Update xatu-cbt version in Makefile, then regenerate:
 ```bash
-make clean && make generate-server
+make clean && make all
 ```
-
-Custom endpoint logic: edit `cmd/tools/generate-implementation/endpoints.go`
 

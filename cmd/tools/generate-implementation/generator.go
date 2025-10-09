@@ -28,10 +28,6 @@ func (g *CodeGenerator) Generate() string {
 	sb.WriteString(generateEndpoints(g.spec, g.protoInfo))
 	sb.WriteString("\n")
 
-	// Type converters (placeholder - basic pass-through for now)
-	sb.WriteString(g.generateTypeConverters())
-	sb.WriteString("\n")
-
 	// Utility functions
 	sb.WriteString(g.generateUtilities())
 	sb.WriteString("\n")
@@ -54,16 +50,15 @@ func (g *CodeGenerator) generateHeader() string {
 // Source: openapi.yaml + proto files
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
 
-	clickhouse "github.com/ethpandaops/xatu-cbt/pkg/proto/clickhouse"
 	"github.com/ethpandaops/xatu-cbt-api/internal/config"
 	"github.com/ethpandaops/xatu-cbt-api/internal/database"
 	"github.com/ethpandaops/xatu-cbt-api/internal/handlers"
+	clickhouse "github.com/ethpandaops/xatu-cbt/pkg/proto/clickhouse"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )`
@@ -168,20 +163,64 @@ func (g *CodeGenerator) generateTypeConverters() string {
 	// Generate a converter for each unique table
 	for _, tableName := range sortedTables {
 		itemType := getItemType(tableName)
-
-		// For now, generate a simple pass-through converter
-		// In a real implementation, this would map fields properly
-		sb.WriteString(fmt.Sprintf(`// protoToOpenAPI%s converts proto %s to OpenAPI type.
-func protoToOpenAPI%s(p *clickhouse.%s) handlers.%s {
-	// TODO: Implement proper field mapping
-	// For now, this is a placeholder that needs manual field mapping
-	return handlers.%s{}
-}
-
-`, itemType, itemType, itemType, itemType, itemType, itemType))
+		sb.WriteString(g.generateConverter(itemType))
 	}
 
 	return sb.String()
+}
+
+// generateConverter generates a proto→OpenAPI converter for a specific type.
+func (g *CodeGenerator) generateConverter(itemType string) string {
+	// Find the OpenAPI schema for this type
+	schema, ok := g.spec.Types[itemType]
+	if !ok {
+		// No schema found, generate placeholder
+		return fmt.Sprintf(`// protoToOpenAPI%s converts proto %s to OpenAPI type.
+func protoToOpenAPI%s(p *clickhouse.%s) handlers.%s {
+	return handlers.%s{}
+}
+
+`, itemType, itemType, itemType, itemType, itemType, itemType)
+	}
+
+	var sb strings.Builder
+
+	sb.WriteString(fmt.Sprintf(`// protoToOpenAPI%s converts proto %s to OpenAPI type.
+func protoToOpenAPI%s(p *clickhouse.%s) handlers.%s {
+	result := handlers.%s{}
+
+`, itemType, itemType, itemType, itemType, itemType, itemType))
+
+	// Generate field mappings
+	for _, field := range schema.Fields {
+		fieldName := toPascalCase(field.Name)
+		sb.WriteString(g.generateFieldMapping(fieldName, field.Nullable))
+	}
+
+	sb.WriteString(`	return result
+}
+
+`)
+
+	return sb.String()
+}
+
+// generateFieldMapping generates field mapping code for proto→OpenAPI conversion.
+func (g *CodeGenerator) generateFieldMapping(fieldName string, nullable bool) string {
+	if nullable {
+		// Nullable fields use wrapperspb in proto
+		// Proto: *wrapperspb.StringValue → OpenAPI: *string (oapi-codegen uses pointers)
+		return fmt.Sprintf(`	if p.%s != nil {
+		val := p.%s.GetValue()
+		result.%s = &val
+	}
+`, fieldName, fieldName, fieldName)
+	}
+
+	// Non-nullable fields need address taken
+	// Proto: uint32 → OpenAPI: *uint32 (oapi-codegen generates all fields as pointers with omitempty)
+	return fmt.Sprintf(`	result.%s = &p.%s
+`, fieldName, fieldName)
 }
 
 // generateUtilities generates utility functions for HTTP handling.
@@ -211,6 +250,18 @@ func generateNextPageToken(currentToken string, itemCount int) string {
 		offset, _ = strconv.Atoi(currentToken)
 	}
 	return strconv.Itoa(offset + itemCount)
+}
+
+// buildQueryOptions creates query options with conditional WithFinal.
+func (s *Server) buildQueryOptions() []clickhouse.QueryOption {
+	opts := []clickhouse.QueryOption{
+		clickhouse.WithDatabase(s.config.ClickHouse.Database),
+	}
+	if s.config.ClickHouse.UseFinal {
+		opts = append(opts, clickhouse.WithFinal())
+	}
+
+	return opts
 }
 `
 }

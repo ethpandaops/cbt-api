@@ -1,4 +1,4 @@
-.PHONY: help openapi clean build install-tools test fmt lint all clone-xatu-cbt
+.PHONY: help openapi clean build install-tools test fmt lint all clone-xatu-cbt build-server run-server
 
 # Colors for output
 CYAN := \033[0;36m
@@ -9,14 +9,15 @@ RESET := \033[0m
 
 # xatu-cbt repository configuration
 XATU_CBT_REPO := https://github.com/ethpandaops/xatu-cbt.git
-XATU_CBT_VERSION ?= c77fe8f4d6465f97ec96684d4c927c8130237d14
+XATU_CBT_VERSION ?= 2ea700f24c4480c96e8f58e4c53960dfccdbecda
 XATU_CBT_DIR := ./.xatu-cbt
 
 # Paths
 PROTO_PATH := $(XATU_CBT_DIR)/pkg/proto/clickhouse
 TMP_DIR := ./tmp
 OUTPUT_FILE := ./openapi.yaml
-TOOL_DIR := ./cmd/tools/openapi-filter-flatten
+PREPROCESS_TOOL := ./cmd/tools/openapi-preprocess
+POSTPROCESS_TOOL := ./cmd/tools/openapi-postprocess
 
 # Get googleapis path
 GOOGLEAPIS_PATH := $(shell go list -m -f '{{.Dir}}' github.com/googleapis/googleapis 2>/dev/null || echo "")
@@ -50,11 +51,12 @@ openapi: build clone-xatu-cbt ## Generate OpenAPI specification from proto files
 	echo "$(YELLOW)Using googleapis: $$GOOGLEAPIS_PATH$(RESET)"; \
 	protoc \
 		--openapi_out=$(TMP_DIR) \
+		--openapi_opt=naming=proto \
 		--proto_path=$(PROTO_PATH) \
 		--proto_path=$$GOOGLEAPIS_PATH \
 		$(PROTO_PATH)/*.proto
-	@echo "$(CYAN)==> Flattening filter parameters...$(RESET)"
-	@go run $(TOOL_DIR) \
+	@echo "$(CYAN)==> Pre-processing OpenAPI spec...$(RESET)"
+	@go run $(PREPROCESS_TOOL) \
 		--input $(TMP_DIR)/openapi.yaml \
 		--output $(OUTPUT_FILE) \
 		--proto-path $(PROTO_PATH)
@@ -75,6 +77,8 @@ generate-server: openapi generate-descriptors ## Generate Go server code from Op
 	@echo "$(CYAN)==> Generating server interface from OpenAPI spec...$(RESET)"
 	@mkdir -p internal/handlers
 	@oapi-codegen --config oapi-codegen.yaml openapi.yaml > internal/handlers/generated.go
+	@echo "$(CYAN)==> Post-processing generated code (adding ClickHouse tags)...$(RESET)"
+	@go run $(POSTPROCESS_TOOL) --input internal/handlers/generated.go
 	@echo "$(GREEN)✓ Server interface generated: internal/handlers/generated.go$(RESET)"
 	@echo "$(CYAN)==> Generating server implementation...$(RESET)"
 	@mkdir -p internal/server
@@ -84,10 +88,10 @@ generate-server: openapi generate-descriptors ## Generate Go server code from Op
 		--output internal/server/implementation.go
 	@echo "$(GREEN)✓ Server implementation generated: internal/server/implementation.go$(RESET)"
 
-build: ## Build the openapi-filter-flatten tool
-	@echo "$(CYAN)==> Building openapi-filter-flatten tool...$(RESET)"
-	@go build -o bin/openapi-filter-flatten $(TOOL_DIR)
-	@echo "$(GREEN)✓ Built: bin/openapi-filter-flatten$(RESET)"
+build: ## Build the openapi-preprocess tool
+	@echo "$(CYAN)==> Building openapi-preprocess tool...$(RESET)"
+	@go build -o bin/openapi-preprocess $(PREPROCESS_TOOL)
+	@echo "$(GREEN)✓ Built: bin/openapi-preprocess$(RESET)"
 
 install-tools: ## Install required tools (protoc-gen-openapi, oapi-codegen)
 	@echo "$(CYAN)==> Installing required tools...$(RESET)"
@@ -100,7 +104,7 @@ install-tools: ## Install required tools (protoc-gen-openapi, oapi-codegen)
 
 deps: install-tools ## Alias for install-tools
 
-clean: ## Remove generated files
+clean: ## Remove generated files and build artifacts
 	@echo "$(CYAN)==> Cleaning generated files...$(RESET)"
 	@rm -rf $(TMP_DIR)
 	@rm -f $(OUTPUT_FILE)
@@ -154,5 +158,14 @@ serve-docs: openapi ## Serve OpenAPI spec with Swagger UI
 		sleep 1; \
 	done; \
 	echo "$(RED)Failed to start Swagger UI$(RESET)"; exit 1
+
+build-server: ## Build the API server binary
+	@echo "$(CYAN)==> Building API server...$(RESET)"
+	@go build -o bin/server ./cmd/server
+	@echo "$(GREEN)✓ Server built: bin/server$(RESET)"
+
+run-server: build-server ## Build and run the API server
+	@echo "$(CYAN)==> Starting API server...$(RESET)"
+	@./bin/server
 
 .DEFAULT_GOAL := help

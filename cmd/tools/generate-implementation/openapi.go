@@ -45,9 +45,10 @@ type Type struct {
 
 // Field represents a field in a type.
 type Field struct {
-	Name    string
-	Type    string
-	JSONTag string
+	Name     string
+	Type     string
+	JSONTag  string
+	Nullable bool
 }
 
 // loadOpenAPI loads and parses an OpenAPI specification file.
@@ -279,9 +280,10 @@ func parseType(name string, schema *openapi3.Schema) *Type {
 				}
 
 				field := Field{
-					Name:    propName,
-					Type:    propType,
-					JSONTag: propName,
+					Name:     propName,
+					Type:     propType,
+					JSONTag:  propName,
+					Nullable: propRef.Value.Nullable,
 				}
 				t.Fields = append(t.Fields, field)
 			}

@@ -62,10 +62,7 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, params handlers.%s) 
 	}
 
 	// Use existing Query Builder
-	sqlQuery, err := clickhouse.%s(req,
-		clickhouse.WithDatabase(s.config.ClickHouse.Database),
-		clickhouse.WithFinal(s.config.ClickHouse.UseFinal),
-	)
+	sqlQuery, err := clickhouse.%s(req, s.buildQueryOptions()...)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -79,15 +76,15 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, params handlers.%s) 
 	}
 	defer rows.Close()
 
-	// Scan results
+	// Scan results directly into OpenAPI types
 	var items []handlers.%s
 	for rows.Next() {
-		var item clickhouse.%s
+		var item handlers.%s
 		if err := rows.ScanStruct(&item); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
-		items = append(items, protoToOpenAPI%s(&item))
+		items = append(items, item)
 	}
 
 	// Build response
@@ -108,7 +105,6 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, params handlers.%s) 
 		requestType,
 		generateFilterAssignments(ep, protoInfo),
 		queryBuilder,
-		itemType,
 		itemType,
 		itemType,
 		ep.ResponseType,
@@ -149,10 +145,7 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, %s %s) {
 	}
 
 	// Use existing Query Builder
-	sqlQuery, err := clickhouse.%s(req,
-		clickhouse.WithDatabase(s.config.ClickHouse.Database),
-		clickhouse.WithFinal(s.config.ClickHouse.UseFinal),
-	)
+	sqlQuery, err := clickhouse.%s(req, s.buildQueryOptions()...)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -166,8 +159,8 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, %s %s) {
 	}
 	defer rows.Close()
 
-	// Scan single result
-	var item clickhouse.%s
+	// Scan single result directly into OpenAPI type
+	var item handlers.%s
 	if rows.Next() {
 		if err := rows.ScanStruct(&item); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
@@ -180,15 +173,13 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, %s %s) {
 	}
 
 	// Build response
-	response := protoToOpenAPI%s(&item)
-	writeJSON(w, response)
+	writeJSON(w, item)
 }`,
 		ep.HandlerName, ep.OperationID, ep.Method, ep.Path,
 		ep.HandlerName, pathParamName, pathParamType,
 		requestType,
 		toPascalCase(pathParamName), pathParamName,
 		queryBuilder,
-		itemType,
 		itemType)
 }
 
@@ -331,7 +322,10 @@ func generateBuilderArgs(params []Param, filterType string) string {
 // getItemType converts a table name to its item type name.
 func getItemType(tableName string) string {
 	// "fct_block" → "FctBlock"
-	return toPascalCase(tableName)
+	// "fct_node_active_last_24_h" → "FctNodeActiveLast24H" (matching protoc capitalization)
+	pascalName := toPascalCase(tableName)
+
+	return normalizeProtoTypeName(pascalName)
 }
 
 // getItemFieldName converts a table name to the field name used in response structs by oapi-codegen.
