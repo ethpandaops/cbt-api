@@ -42,6 +42,19 @@ help: ## Show this help message
 # Install required development tools (one-time setup)
 install-tools:
 	@echo "$(CYAN)==> Installing required tools...$(RESET)"
+	@if ! command -v protoc >/dev/null 2>&1; then \
+		echo "$(YELLOW)==> Installing protoc...$(RESET)"; \
+		if [ "$$(uname)" = "Linux" ]; then \
+			sudo apt-get update && sudo apt-get install -y protobuf-compiler; \
+		elif [ "$$(uname)" = "Darwin" ]; then \
+			brew install protobuf; \
+		else \
+			echo "$(RED)Error: Unsupported OS. Please install protoc manually from https://github.com/protocolbuffers/protobuf/releases$(RESET)"; \
+			exit 1; \
+		fi; \
+	else \
+		echo "$(GREEN)✓ protoc already installed$(RESET)"; \
+	fi
 	@go install github.com/kollalabs/protoc-gen-openapi@latest
 	@go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
 	@go get github.com/getkin/kin-openapi/openapi3@latest
@@ -126,6 +139,8 @@ run: build
 		--openapi openapi.yaml \
 		--proto-path $(XATU_CBT_DIR)/pkg/proto/clickhouse \
 		--output internal/server/implementation.go
+	@echo "$(CYAN)==> Copying OpenAPI spec for embedding...$(RESET)"
+	@cp openapi.yaml internal/server/openapi.yaml
 	@echo "$(GREEN)✓ Server implementation generated: internal/server/implementation.go$(RESET)"
 
 # Clean generated files and build artifacts
@@ -137,6 +152,7 @@ clean:
 	@rm -rf bin/
 	@rm -f internal/handlers/generated.go
 	@rm -f internal/server/implementation.go
+	@rm -f internal/server/openapi.yaml
 	@rm -rf $(XATU_CBT_DIR)
 	@echo "$(GREEN)✓ Cleaned$(RESET)"
 
