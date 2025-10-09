@@ -327,6 +327,126 @@ func TestGetFieldTypeFromDescriptor(t *testing.T) {
 	}
 }
 
+func TestNormalizeProtoTypeName(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "simple name",
+			input:    "FctBlock",
+			expected: "FctBlock",
+		},
+		{
+			name:     "name with number suffix",
+			input:    "FctNodeActiveLast24h",
+			expected: "FctNodeActiveLast24H",
+		},
+		{
+			name:     "name with ms suffix",
+			input:    "FctAttestationFirstSeenChunked50ms",
+			expected: "FctAttestationFirstSeenChunked50Ms",
+		},
+		{
+			name:     "already normalized",
+			input:    "FctNodeActiveLast24H",
+			expected: "FctNodeActiveLast24H",
+		},
+		{
+			name:     "multiple number-letter transitions",
+			input:    "Test1abc2def",
+			expected: "Test1Abc2Def",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "single character",
+			input:    "A",
+			expected: "A",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := normalizeProtoTypeName(tt.input)
+			assert.Equal(t, tt.expected, got, "normalizeProtoTypeName(%q)", tt.input)
+		})
+	}
+}
+
+func TestGetKnownFilterTypes(t *testing.T) {
+	filterTypes := getKnownFilterTypes()
+
+	// Test that all expected filter types are present
+	expectedTypes := []string{
+		"UInt32Filter",
+		"UInt64Filter",
+		"Int32Filter",
+		"Int64Filter",
+		"StringFilter",
+		"BoolFilter",
+		"NullableUInt32Filter",
+		"NullableUInt64Filter",
+		"NullableInt32Filter",
+		"NullableInt64Filter",
+		"NullableStringFilter",
+		"NullableBoolFilter",
+		"MapStringStringFilter",
+		"MapStringUInt32Filter",
+		"MapStringInt32Filter",
+		"MapStringUInt64Filter",
+		"MapStringInt64Filter",
+	}
+
+	for _, typeName := range expectedTypes {
+		t.Run(typeName, func(t *testing.T) {
+			ft, exists := filterTypes[typeName]
+			assert.True(t, exists, "filter type %q should exist", typeName)
+			assert.NotNil(t, ft, "filter type %q should not be nil", typeName)
+			assert.Equal(t, typeName, ft.Name, "filter type name should match")
+			assert.NotEmpty(t, ft.Operators, "filter type should have operators")
+		})
+	}
+
+	// Test specific filter type properties
+	t.Run("UInt32Filter properties", func(t *testing.T) {
+		ft := filterTypes["UInt32Filter"]
+		assert.Equal(t, "uint32", ft.BaseType)
+		assert.False(t, ft.IsNullable)
+		assert.False(t, ft.IsMap)
+		assert.Contains(t, ft.Operators, "eq")
+		assert.Contains(t, ft.Operators, "ne")
+		assert.Contains(t, ft.Operators, "lt")
+		assert.Contains(t, ft.Operators, "gte")
+	})
+
+	t.Run("NullableStringFilter properties", func(t *testing.T) {
+		ft := filterTypes["NullableStringFilter"]
+		assert.Equal(t, "string", ft.BaseType)
+		assert.True(t, ft.IsNullable)
+		assert.False(t, ft.IsMap)
+		assert.Contains(t, ft.Operators, "eq")
+		assert.Contains(t, ft.Operators, "contains")
+		assert.Contains(t, ft.Operators, "is_null")
+		assert.Contains(t, ft.Operators, "is_not_null")
+	})
+
+	t.Run("MapStringStringFilter properties", func(t *testing.T) {
+		ft := filterTypes["MapStringStringFilter"]
+		assert.Equal(t, "map[string]string", ft.BaseType)
+		assert.False(t, ft.IsNullable)
+		assert.True(t, ft.IsMap)
+		assert.Contains(t, ft.Operators, "has_key")
+		assert.Contains(t, ft.Operators, "not_has_key")
+		assert.Contains(t, ft.Operators, "has_any_key")
+		assert.Contains(t, ft.Operators, "has_all_keys")
+	})
+}
+
 // Helper function for test.
 func splitString(s, sep string) []string {
 	var result []string
