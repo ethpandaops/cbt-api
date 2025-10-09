@@ -76,15 +76,15 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, params handlers.%s) 
 	}
 	defer rows.Close()
 
-	// Scan results and convert to OpenAPI types
+	// Scan results directly into OpenAPI types
 	var items []handlers.%s
 	for rows.Next() {
-		var item clickhouse.%s
+		var item handlers.%s
 		if err := rows.ScanStruct(&item); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
-		items = append(items, protoToOpenAPI%s(&item))
+		items = append(items, item)
 	}
 
 	// Build response
@@ -105,7 +105,6 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, params handlers.%s) 
 		requestType,
 		generateFilterAssignments(ep, protoInfo),
 		queryBuilder,
-		itemType,
 		itemType,
 		itemType,
 		ep.ResponseType,
@@ -160,8 +159,8 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, %s %s) {
 	}
 	defer rows.Close()
 
-	// Scan single result and convert to OpenAPI type
-	var item clickhouse.%s
+	// Scan single result directly into OpenAPI type
+	var item handlers.%s
 	if rows.Next() {
 		if err := rows.ScanStruct(&item); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
@@ -173,16 +172,13 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, %s %s) {
 		return
 	}
 
-	// Convert to OpenAPI type and write response
-	response := protoToOpenAPI%s(&item)
-	writeJSON(w, response)
+	writeJSON(w, item)
 }`,
 		ep.HandlerName, ep.OperationID, ep.Method, ep.Path,
 		ep.HandlerName, pathParamName, pathParamType,
 		requestType,
 		toPascalCase(pathParamName), pathParamName,
 		queryBuilder,
-		itemType,
 		itemType)
 }
 
