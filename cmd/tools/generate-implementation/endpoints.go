@@ -62,7 +62,10 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, params handlers.%s) 
 	}
 
 	// Use existing Query Builder
-	sqlQuery, err := clickhouse.%s(req, s.buildQueryOptions()...)
+	sqlQuery, err := clickhouse.%s(req,
+		clickhouse.WithDatabase(s.config.ClickHouse.Database),
+		clickhouse.WithFinal(s.config.ClickHouse.UseFinal),
+	)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -76,15 +79,15 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, params handlers.%s) 
 	}
 	defer rows.Close()
 
-	// Scan results directly into OpenAPI types
+	// Scan results and convert to OpenAPI types
 	var items []handlers.%s
 	for rows.Next() {
-		var item handlers.%s
+		var item clickhouse.%s
 		if err := rows.ScanStruct(&item); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
-		items = append(items, item)
+		items = append(items, protoToOpenAPI%s(&item))
 	}
 
 	// Build response
@@ -105,6 +108,7 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, params handlers.%s) 
 		requestType,
 		generateFilterAssignments(ep, protoInfo),
 		queryBuilder,
+		itemType,
 		itemType,
 		itemType,
 		ep.ResponseType,
@@ -145,7 +149,10 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, %s %s) {
 	}
 
 	// Use existing Query Builder
-	sqlQuery, err := clickhouse.%s(req, s.buildQueryOptions()...)
+	sqlQuery, err := clickhouse.%s(req,
+		clickhouse.WithDatabase(s.config.ClickHouse.Database),
+		clickhouse.WithFinal(s.config.ClickHouse.UseFinal),
+	)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -159,8 +166,8 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, %s %s) {
 	}
 	defer rows.Close()
 
-	// Scan single result directly into OpenAPI type
-	var item handlers.%s
+	// Scan single result and convert to OpenAPI type
+	var item clickhouse.%s
 	if rows.Next() {
 		if err := rows.ScanStruct(&item); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
@@ -172,14 +179,16 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, %s %s) {
 		return
 	}
 
-	// Build response
-	writeJSON(w, item)
+	// Convert to OpenAPI type and write response
+	response := protoToOpenAPI%s(&item)
+	writeJSON(w, response)
 }`,
 		ep.HandlerName, ep.OperationID, ep.Method, ep.Path,
 		ep.HandlerName, pathParamName, pathParamType,
 		requestType,
 		toPascalCase(pathParamName), pathParamName,
 		queryBuilder,
+		itemType,
 		itemType)
 }
 
