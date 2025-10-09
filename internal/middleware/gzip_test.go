@@ -100,6 +100,7 @@ func TestGzip(t *testing.T) {
 				// Decompress and verify content
 				gr, err := gzip.NewReader(rec.Body)
 				require.NoError(t, err)
+
 				defer gr.Close()
 
 				decompressed, err := io.ReadAll(gr)
@@ -171,6 +172,7 @@ func TestGzip_HeadersSetOnFirstWrite(t *testing.T) {
 	// Verify decompressed content
 	gr, err := gzip.NewReader(rec.Body)
 	require.NoError(t, err)
+
 	defer gr.Close()
 
 	decompressed, err := io.ReadAll(gr)
