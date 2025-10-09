@@ -104,19 +104,21 @@ func (c *Client) Close() error {
 
 // parseDSN processes the DSN and determines connection protocol.
 func parseDSN(dsn string) (*url.URL, error) {
-	// Normalize scheme based on port detection
-	useNative := strings.Contains(dsn, PortClickHouseNative) || strings.Contains(dsn, PortClickHouseNativeTLS)
+	// Normalize scheme based on explicit scheme or port detection
+	var processedDSN string
 
-	processedDSN := dsn
-	if useNative {
-		// Use native protocol for ports 9000/9440
-		if !strings.HasPrefix(dsn, SchemeClickHouse) {
-			processedDSN = SchemeClickHouse + strings.TrimPrefix(strings.TrimPrefix(dsn, SchemeHTTPS), SchemeHTTP)
-		}
+	// If DSN already has a scheme, keep it as-is
+	if strings.HasPrefix(dsn, SchemeClickHouse) || strings.HasPrefix(dsn, SchemeHTTPS) || strings.HasPrefix(dsn, SchemeHTTP) {
+		processedDSN = dsn
 	} else {
-		// Use HTTP/HTTPS for other ports
-		if strings.HasPrefix(dsn, SchemeClickHouse) {
-			processedDSN = SchemeHTTPS + strings.TrimPrefix(dsn, SchemeClickHouse)
+		// Auto-detect protocol based on port
+		useNative := strings.Contains(dsn, PortClickHouseNative) || strings.Contains(dsn, PortClickHouseNativeTLS)
+		if useNative {
+			// Use native protocol for ports 9000/9440
+			processedDSN = SchemeClickHouse + dsn
+		} else {
+			// Default to HTTPS for other ports
+			processedDSN = SchemeHTTPS + dsn
 		}
 	}
 
