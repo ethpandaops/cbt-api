@@ -62,10 +62,7 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, params handlers.%s) 
 	}
 
 	// Use existing Query Builder
-	sqlQuery, err := clickhouse.%s(req,
-		clickhouse.WithDatabase(s.config.ClickHouse.Database),
-		clickhouse.WithFinal(s.config.ClickHouse.UseFinal),
-	)
+	sqlQuery, err := clickhouse.%s(req, s.buildQueryOptions()...)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
@@ -149,10 +146,7 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, %s %s) {
 	}
 
 	// Use existing Query Builder
-	sqlQuery, err := clickhouse.%s(req,
-		clickhouse.WithDatabase(s.config.ClickHouse.Database),
-		clickhouse.WithFinal(s.config.ClickHouse.UseFinal),
-	)
+	sqlQuery, err := clickhouse.%s(req, s.buildQueryOptions()...)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return

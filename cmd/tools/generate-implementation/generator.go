@@ -28,6 +28,10 @@ func (g *CodeGenerator) Generate() string {
 	sb.WriteString(generateEndpoints(g.spec, g.protoInfo))
 	sb.WriteString("\n")
 
+	// Type converters
+	sb.WriteString(g.generateTypeConverters())
+	sb.WriteString("\n")
+
 	// Utility functions
 	sb.WriteString(g.generateUtilities())
 	sb.WriteString("\n")
