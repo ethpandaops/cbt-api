@@ -33,10 +33,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Add ch tags to json tags.
+	// Add ch tags to json tags
 	processed := addChTags(string(content))
 
-	// Fix array pointers (*[]T -> []T) for ClickHouse compatibility
+	// Fix array pointers (*[]T -> []T) for ClickHouse driver compatibility
+	// oapi-codegen generates optional arrays as *[]T, but ClickHouse driver
+	// cannot scan into pointer-to-slice, only into slice.
 	processed = fixArrayPointers(processed)
 
 	if err := os.WriteFile(*output, []byte(processed), 0600); err != nil {
@@ -44,7 +46,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("%s✓ Added ch tags to %s%s\n", colorGreen, *output, colorReset)
+	fmt.Printf("%s✓ Post-processed %s%s\n", colorGreen, *output, colorReset)
 }
 
 // addChTags adds ch:"..." tags to struct fields that have json:"..." tags.
@@ -73,12 +75,18 @@ func addChTags(content string) string {
 	return result
 }
 
-// fixArrayPointers removes pointer indirection from array/slice types for ClickHouse compatibility.
-// ClickHouse driver cannot scan Array columns into pointer-to-slice (*[]T), only into slices ([]T).
+// fixArrayPointers converts *[]T to []T for ClickHouse driver compatibility.
+//
+// Why this is needed:
+//   - oapi-codegen generates optional fields as pointers (e.g., *[]string)
+//   - ClickHouse driver's Scan() cannot handle *[]T, only []T
+//   - oapi-codegen has no configuration option to disable pointers for arrays only
+//
+// This is a pragmatic solution that's safer than alternatives like:
+//   - Marking arrays as required (changes API contract)
+//   - Using custom x-go-type extensions (verbose, repetitive)
+//   - Forking oapi-codegen (maintenance burden)
 func fixArrayPointers(content string) string {
-	// Match: *[]Type (pointer to slice)
-	// Replace with: []Type (slice)
 	re := regexp.MustCompile(`\*\[\]([a-zA-Z0-9_]+)`)
-
 	return re.ReplaceAllString(content, "[]$1")
 }

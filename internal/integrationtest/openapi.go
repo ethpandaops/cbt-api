@@ -179,3 +179,25 @@ func extractTableName(path string) string {
 
 	return ""
 }
+
+// GetTableNamesFromSpec extracts all unique table names from the OpenAPI spec.
+// Returns a slice of table names like ["fct_block", "fct_attestation_correctness", etc.].
+func GetTableNamesFromSpec(specPath string) ([]string, error) {
+	endpoints, err := ParseOpenAPISpec(specPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Use a map to deduplicate table names
+	seen := make(map[string]bool)
+	tables := make([]string, 0)
+
+	for _, endpoint := range endpoints {
+		if endpoint.TableName != "" && !seen[endpoint.TableName] {
+			seen[endpoint.TableName] = true
+			tables = append(tables, endpoint.TableName)
+		}
+	}
+
+	return tables, nil
+}
