@@ -51,6 +51,7 @@ dockers:
       - Makefile
       - go.mod
       - go.sum
+      - oapi-codegen.yaml
       - cmd
       - internal
       - config.example.yaml
@@ -71,6 +72,7 @@ dockers:
       - Makefile
       - go.mod
       - go.sum
+      - oapi-codegen.yaml
       - cmd
       - internal
       - config.example.yaml
