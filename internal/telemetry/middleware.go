@@ -1,11 +1,13 @@
 package telemetry
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
@@ -20,7 +22,7 @@ func HTTPMiddleware() func(http.Handler) http.Handler {
 			otelhttp.WithSpanOptions(oteltrace.WithSpanKind(oteltrace.SpanKindServer)),
 		)
 
-		// Wrap with custom attribute extraction
+		// Wrap with custom attribute extraction and status setting
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Extract and add custom attributes
 			ctx := r.Context()
@@ -30,8 +32,47 @@ func HTTPMiddleware() func(http.Handler) http.Handler {
 				addCustomHTTPAttributes(span, r)
 			}
 
-			handler.ServeHTTP(w, r)
+			// Wrap response writer to capture status code
+			wrapped := &statusRecorder{
+				ResponseWriter: w,
+				statusCode:     http.StatusOK, // Default to 200
+			}
+
+			// Serve request
+			handler.ServeHTTP(wrapped, r)
+
+			// Set span status based on HTTP status code
+			if span.SpanContext().IsValid() {
+				setSpanStatus(span, wrapped.statusCode)
+			}
 		})
+	}
+}
+
+// statusRecorder wraps http.ResponseWriter to capture the status code.
+type statusRecorder struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+// WriteHeader captures the status code.
+func (r *statusRecorder) WriteHeader(statusCode int) {
+	r.statusCode = statusCode
+	r.ResponseWriter.WriteHeader(statusCode)
+}
+
+// setSpanStatus sets the span status based on HTTP status code.
+func setSpanStatus(span oteltrace.Span, statusCode int) {
+	switch {
+	case statusCode >= 200 && statusCode < 400:
+		// 2xx and 3xx are successful
+		span.SetStatus(codes.Ok, "")
+	case statusCode >= 400 && statusCode < 500:
+		// 4xx are client errors
+		span.SetStatus(codes.Error, fmt.Sprintf("Client error: %d", statusCode))
+	case statusCode >= 500:
+		// 5xx are server errors
+		span.SetStatus(codes.Error, fmt.Sprintf("Server error: %d", statusCode))
 	}
 }
 
