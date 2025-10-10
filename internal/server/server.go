@@ -13,6 +13,7 @@ import (
 	"github.com/ethpandaops/xatu-cbt-api/internal/database"
 	"github.com/ethpandaops/xatu-cbt-api/internal/handlers"
 	"github.com/ethpandaops/xatu-cbt-api/internal/middleware"
+	"github.com/ethpandaops/xatu-cbt-api/internal/telemetry"
 )
 
 //go:embed openapi.yaml
@@ -26,9 +27,12 @@ func New(cfg *config.Config, logger logrus.FieldLogger) (*http.Server, error) {
 		return nil, fmt.Errorf("failed to create ClickHouse client: %w", err)
 	}
 
+	// Wrap database client with tracing
+	tracedDB := telemetry.NewTracedClient(db, cfg.ClickHouse.Database, logger)
+
 	// Create generated server implementation.
 	impl := &Server{
-		db:     db,
+		db:     tracedDB,
 		config: cfg,
 	}
 
@@ -60,6 +64,12 @@ func New(cfg *config.Config, logger logrus.FieldLogger) (*http.Server, error) {
 	handler = middleware.CORS()(handler)
 	handler = middleware.Recovery(logger)(handler)
 	handler = middleware.Metrics()(handler)
+
+	// Add tracing middleware (only if telemetry is enabled)
+	if cfg.Telemetry.Enabled {
+		handler = telemetry.HTTPMiddleware()(handler)
+	}
+
 	handler = middleware.Gzip(middleware.WithExcludePaths("/metrics"))(handler)
 
 	return &http.Server{
