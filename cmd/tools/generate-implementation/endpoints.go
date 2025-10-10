@@ -89,7 +89,7 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, params handlers.%s) 
 
 	// Build response
 	response := handlers.%s{
-		%s: &items,
+		%s: items,
 	}
 
 	// Add pagination token

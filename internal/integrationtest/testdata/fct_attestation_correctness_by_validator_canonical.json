@@ -1,0 +1,84 @@
+{
+	"meta":
+	[
+		{
+			"name": "updated_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "slot",
+			"type": "UInt32"
+		},
+		{
+			"name": "slot_start_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "epoch",
+			"type": "UInt32"
+		},
+		{
+			"name": "epoch_start_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "attesting_validator_index",
+			"type": "UInt32"
+		},
+		{
+			"name": "block_root",
+			"type": "Nullable(String)"
+		},
+		{
+			"name": "slot_distance",
+			"type": "Nullable(UInt32)"
+		},
+		{
+			"name": "inclusion_distance",
+			"type": "Nullable(UInt32)"
+		},
+		{
+			"name": "status",
+			"type": "LowCardinality(String)"
+		}
+	],
+
+	"data":
+	[
+		{
+			"updated_date_time": "2025-09-26 06:16:40",
+			"slot": 12670110,
+			"slot_start_date_time": "2025-09-26 05:42:23",
+			"epoch": 395940,
+			"epoch_start_date_time": "2025-09-26 05:36:23",
+			"attesting_validator_index": 241,
+			"block_root": "0xf41f982ebf2318b89409f3e69c22507dd881c631155f47f14d781a66702be223",
+			"slot_distance": 0,
+			"inclusion_distance": 1,
+			"status": "canonical"
+		},
+		{
+			"updated_date_time": "2025-09-26 06:16:40",
+			"slot": 12670110,
+			"slot_start_date_time": "2025-09-26 05:42:23",
+			"epoch": 395940,
+			"epoch_start_date_time": "2025-09-26 05:36:23",
+			"attesting_validator_index": 271,
+			"block_root": "0xf41f982ebf2318b89409f3e69c22507dd881c631155f47f14d781a66702be223",
+			"slot_distance": 0,
+			"inclusion_distance": 1,
+			"status": "canonical"
+		}
+	],
+
+	"rows": 2,
+
+	"rows_before_limit_at_least": 6,
+
+	"statistics":
+	{
+		"elapsed": 0.237260192,
+		"rows_read": 47028,
+		"bytes_read": 5214966
+	}
+}

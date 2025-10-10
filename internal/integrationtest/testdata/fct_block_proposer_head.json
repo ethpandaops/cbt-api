@@ -1,0 +1,72 @@
+{
+	"meta":
+	[
+		{
+			"name": "updated_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "slot",
+			"type": "UInt32"
+		},
+		{
+			"name": "slot_start_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "epoch",
+			"type": "UInt32"
+		},
+		{
+			"name": "epoch_start_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "proposer_validator_index",
+			"type": "UInt32"
+		},
+		{
+			"name": "proposer_pubkey",
+			"type": "String"
+		},
+		{
+			"name": "block_root",
+			"type": "Nullable(String)"
+		}
+	],
+
+	"data":
+	[
+		{
+			"updated_date_time": "2025-10-01 07:17:01",
+			"slot": 10076400,
+			"slot_start_date_time": "2024-10-01 00:00:23",
+			"epoch": 314887,
+			"epoch_start_date_time": "2024-09-30 23:57:11",
+			"proposer_validator_index": 1051554,
+			"proposer_pubkey": "0x9770f44ef40e08df79d73cd1e7c4767182b941984a753f27efd7453636663c1c0a944a6668434316d7f3b311a5476c3e",
+			"block_root": "0xbde97febe0d593d3c757ab340e637739b283d2850f5eac2fddc8ec48c0f0e6f4"
+		},
+		{
+			"updated_date_time": "2025-10-01 07:17:01",
+			"slot": 10076409,
+			"slot_start_date_time": "2024-10-01 00:02:11",
+			"epoch": 314887,
+			"epoch_start_date_time": "2024-09-30 23:57:11",
+			"proposer_validator_index": 408609,
+			"proposer_pubkey": "0xaae5de018f10aca1c41550155998e6fb975e8abb947371b10a98b444f63f906995ab399a75385976b7d20b43ed5278e5",
+			"block_root": "0xd09b934aa9c01652a06f24382f6a3ba5bbe81f9c3ca2616aa0e277c9b8379cb0"
+		}
+	],
+
+	"rows": 2,
+
+	"rows_before_limit_at_least": 2,
+
+	"statistics":
+	{
+		"elapsed": 0.495284002,
+		"rows_read": 1167299,
+		"bytes_read": 164670692
+	}
+}

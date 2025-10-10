@@ -28,8 +28,6 @@ func Recovery(logger logrus.FieldLogger) func(http.Handler) http.Handler {
 					if _, err := w.Write([]byte(errorMsg)); err != nil {
 						logger.WithError(err).Error("Failed to write panic recovery response")
 					}
-
-					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 				}
 			}()
 

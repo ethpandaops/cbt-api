@@ -1,0 +1,66 @@
+{
+	"meta":
+	[
+		{
+			"name": "updated_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "slot",
+			"type": "UInt32"
+		},
+		{
+			"name": "slot_start_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "epoch",
+			"type": "UInt32"
+		},
+		{
+			"name": "epoch_start_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "relay_name",
+			"type": "String"
+		},
+		{
+			"name": "bid_total",
+			"type": "UInt32"
+		}
+	],
+
+	"data":
+	[
+		{
+			"updated_date_time": "2025-09-26 05:59:20",
+			"slot": 12670156,
+			"slot_start_date_time": "2025-09-26 05:51:35",
+			"epoch": 395942,
+			"epoch_start_date_time": "2025-09-26 05:49:11",
+			"relay_name": "BloXroute Regulated",
+			"bid_total": 2520
+		},
+		{
+			"updated_date_time": "2025-09-26 05:59:20",
+			"slot": 12670156,
+			"slot_start_date_time": "2025-09-26 05:51:35",
+			"epoch": 395942,
+			"epoch_start_date_time": "2025-09-26 05:49:11",
+			"relay_name": "Flashbots",
+			"bid_total": 825
+		}
+	],
+
+	"rows": 2,
+
+	"rows_before_limit_at_least": 16384,
+
+	"statistics":
+	{
+		"elapsed": 0.032005759,
+		"rows_read": 196677,
+		"bytes_read": 9162445
+	}
+}

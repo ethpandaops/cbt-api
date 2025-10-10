@@ -11,6 +11,10 @@ import (
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
+	"google.golang.org/protobuf/encoding/protowire"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/descriptorpb"
 	"gopkg.in/yaml.v3"
 )
 
@@ -23,6 +27,16 @@ type ProtoDescriptions map[string]map[string]string
 
 // ProtoFieldTypes maps field name -> google.protobuf wrapper type (e.g., "DoubleValue").
 type ProtoFieldTypes map[string]string
+
+// FieldAnnotations holds custom ClickHouse annotations for a field.
+type FieldAnnotations struct {
+	RequiredGroup            string
+	ProjectionName           string
+	ProjectionAlternativeFor string
+}
+
+// ProtoFieldAnnotations maps message.field -> FieldAnnotations.
+type ProtoFieldAnnotations map[string]FieldAnnotations
 
 // WrapperTypeMapping defines correct OpenAPI type/format for google.protobuf wrapper types.
 type WrapperTypeMapping struct {
@@ -71,6 +85,7 @@ func main() {
 	input := flag.String("input", "", "Input OpenAPI YAML")
 	output := flag.String("output", "", "Output OpenAPI YAML")
 	protoPath := flag.String("proto-path", ".xatu-cbt/pkg/proto/clickhouse", "Path to proto files")
+	descriptorPath := flag.String("descriptor", ".descriptors.pb", "Path to proto descriptor file")
 	flag.Parse()
 
 	if *input == "" || *output == "" {
@@ -88,6 +103,14 @@ func main() {
 		fieldTypes = make(ProtoFieldTypes)
 	}
 
+	// Load custom annotations from descriptor
+	annotations, err := loadProtoAnnotations(*descriptorPath)
+	if err != nil {
+		fmt.Printf("Warning: Could not load proto annotations: %v\n", err)
+
+		annotations = make(ProtoFieldAnnotations)
+	}
+
 	// Load OpenAPI spec
 	loader := openapi3.NewLoader()
 
@@ -98,7 +121,7 @@ func main() {
 	}
 
 	// Apply transformations
-	_ = applyTransformations(doc, descriptions, fieldTypes)
+	_ = applyTransformations(doc, descriptions, fieldTypes, annotations)
 
 	// Write output
 	if err := writeOpenAPIYAML(doc, *output); err != nil {
@@ -121,7 +144,7 @@ type TransformationStats struct {
 }
 
 // applyTransformations applies all OpenAPI transformations.
-func applyTransformations(doc *openapi3.T, descriptions ProtoDescriptions, fieldTypes ProtoFieldTypes) TransformationStats {
+func applyTransformations(doc *openapi3.T, descriptions ProtoDescriptions, fieldTypes ProtoFieldTypes, annotations ProtoFieldAnnotations) TransformationStats {
 	stats := TransformationStats{}
 
 	// 1. Flatten filter parameters (dot notation -> underscore notation)
@@ -132,6 +155,9 @@ func applyTransformations(doc *openapi3.T, descriptions ProtoDescriptions, field
 
 	// 3. Fix wrapper type mappings
 	stats.TypesFixed = fixWrapperTypes(doc, fieldTypes)
+
+	// 4. Add custom annotations as OpenAPI extensions
+	addAnnotationExtensions(doc, annotations)
 
 	return stats
 }
@@ -663,6 +689,235 @@ func camelToSnake(s string) string {
 	}
 
 	return strings.ToLower(result.String())
+}
+
+// ============================================================================
+// Annotation Loading
+// ============================================================================
+
+// loadProtoAnnotations loads custom clickhouse.v1 annotations from proto descriptor file.
+func loadProtoAnnotations(descriptorPath string) (ProtoFieldAnnotations, error) {
+	annotations := make(ProtoFieldAnnotations)
+
+	// Read descriptor file
+	data, err := os.ReadFile(descriptorPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read descriptor file: %w", err)
+	}
+
+	// Parse descriptor set
+	var fds descriptorpb.FileDescriptorSet
+	if err := proto.Unmarshal(data, &fds); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal descriptor: %w", err)
+	}
+
+	// Extension field numbers for clickhouse.v1 annotations
+	const (
+		requiredGroupExtension    = 50003
+		projectionNameExtension   = 50002
+		projectionAltForExtension = 50001
+	)
+
+	// Process each file in the descriptor set
+	for _, file := range fds.File {
+		// Process each message in the file
+		for _, message := range file.MessageType {
+			messageName := message.GetName()
+
+			// Process each field in the message
+			for _, field := range message.Field {
+				fieldName := field.GetName()
+				// Use lowercase for case-insensitive matching
+				key := strings.ToLower(messageName + "." + fieldName)
+
+				var annot FieldAnnotations
+
+				// Read custom extensions using protoreflect API (proper way)
+				if field.Options != nil {
+					annot.RequiredGroup = getStringExtension(field.Options, requiredGroupExtension)
+					annot.ProjectionName = getStringExtension(field.Options, projectionNameExtension)
+					annot.ProjectionAlternativeFor = getStringExtension(field.Options, projectionAltForExtension)
+
+					// Store if any annotations found
+					if annot.RequiredGroup != "" || annot.ProjectionName != "" || annot.ProjectionAlternativeFor != "" {
+						annotations[key] = annot
+					}
+				}
+			}
+		}
+	}
+
+	return annotations, nil
+}
+
+// getStringExtension reads a string extension from FieldOptions using protoreflect API.
+// This is the proper way to read proto extensions without using unsafe pointers.
+func getStringExtension(opts *descriptorpb.FieldOptions, fieldNum int) string {
+	if opts == nil {
+		return ""
+	}
+
+	// Use protoreflect to access extensions properly
+	msg := opts.ProtoReflect()
+
+	// Get the field descriptor for this extension number
+	fieldDesc := msg.Descriptor().Fields().ByNumber(protoreflect.FieldNumber(fieldNum)) //nolint:gosec // fine.
+
+	// If the field is not known in the descriptor, check unknown fields
+	// Extensions may be stored in unknown fields if not registered
+	if fieldDesc == nil {
+		// Range over unknown fields to find our extension
+		unknownFields := msg.GetUnknown()
+		if len(unknownFields) == 0 {
+			return ""
+		}
+
+		// Parse unknown fields manually, but using the proper protoreflect API
+		// instead of unsafe pointer access
+		return parseStringFromUnknownFields(unknownFields, fieldNum)
+	}
+
+	// If field is known, get it properly
+	if msg.Has(fieldDesc) {
+		value := msg.Get(fieldDesc)
+
+		return value.String()
+	}
+
+	return ""
+}
+
+// parseStringFromUnknownFields parses string extension from unknown fields.
+// Uses protowire (the official parser) instead of unsafe pointer access.
+func parseStringFromUnknownFields(unknownFields protoreflect.RawFields, targetFieldNum int) string {
+	b := []byte(unknownFields)
+	targetNum := protoreflect.FieldNumber(targetFieldNum) //nolint:gosec // fine.
+
+	// Parse using official protowire API
+	for len(b) > 0 {
+		num, typ, n := protowire.ConsumeTag(b)
+		if n < 0 {
+			return "" // invalid tag
+		}
+
+		b = b[n:]
+
+		// Check if this is our target field
+		if num == targetNum && typ == protowire.BytesType {
+			// Found it - read the string value
+			val, n1 := protowire.ConsumeBytes(b)
+			if n1 < 0 {
+				return "" // invalid value
+			}
+
+			return string(val)
+		}
+
+		// Skip this field and continue
+		n = protowire.ConsumeFieldValue(num, typ, b)
+		if n < 0 {
+			return "" // invalid field
+		}
+
+		b = b[n:]
+	}
+
+	return ""
+}
+
+// addAnnotationExtensions adds custom clickhouse.v1 annotations as OpenAPI extensions.
+func addAnnotationExtensions(doc *openapi3.T, annotations ProtoFieldAnnotations) {
+	for _, pathItem := range doc.Paths.Map() {
+		for _, op := range []*openapi3.Operation{pathItem.Get, pathItem.Post} {
+			if op == nil {
+				continue
+			}
+
+			// Extract message name from operation ID
+			// e.g., "FctBlockMevService_List" -> "ListFctBlockMevRequest".
+			messageName := operationIDToMessageName(op.OperationID)
+
+			// Process each parameter
+			for _, paramRef := range op.Parameters {
+				if paramRef.Value == nil {
+					continue
+				}
+
+				param := paramRef.Value
+				fieldName := convertParamToFieldName(param.Name)
+				// Use lowercase for case-insensitive matching
+				key := strings.ToLower(messageName + "." + fieldName)
+
+				// Check if we have annotations for this field
+				if annot, exists := annotations[key]; exists {
+					// Add extensions to parameter
+					if param.Extensions == nil {
+						param.Extensions = make(map[string]interface{})
+					}
+
+					if annot.RequiredGroup != "" {
+						param.Extensions["x-required-group"] = annot.RequiredGroup
+					}
+
+					if annot.ProjectionName != "" {
+						param.Extensions["x-projection-name"] = annot.ProjectionName
+					}
+
+					if annot.ProjectionAlternativeFor != "" {
+						param.Extensions["x-projection-alternative-for"] = annot.ProjectionAlternativeFor
+					}
+				}
+			}
+		}
+	}
+}
+
+// operationIDToMessageName converts operation ID to request message name.
+// e.g., "FctBlockMevService_List" -> "ListFctBlockMevRequest".
+func operationIDToMessageName(operationID string) string {
+	// Split by underscore
+	parts := strings.Split(operationID, "_")
+	if len(parts) < 2 {
+		return ""
+	}
+
+	// Get service name and method
+	serviceName := strings.TrimSuffix(parts[0], "Service")
+	method := parts[1]
+
+	// Construct message name: Method + ServiceName + "Request"
+	return method + serviceName + "Request"
+}
+
+// convertParamToFieldName converts a parameter name to proto field name.
+// e.g., "slot_start_date_time_gte" -> "slot_start_date_time".
+func convertParamToFieldName(paramName string) string {
+	// Remove filter suffixes (longest first to handle multi-part suffixes)
+	suffixes := []string{
+		"_between_max_value",
+		"_not_in_values",
+		"_starts_with",
+		"_ends_with",
+		"_in_values",
+		"_between_min",
+		"_not_like",
+		"_contains",
+		"_like",
+		"_gte",
+		"_lte",
+		"_eq",
+		"_ne",
+		"_lt",
+		"_gt",
+	}
+
+	for _, suffix := range suffixes {
+		if strings.HasSuffix(paramName, suffix) {
+			return strings.TrimSuffix(paramName, suffix)
+		}
+	}
+
+	return paramName
 }
 
 // writeOpenAPIYAML writes OpenAPI document to YAML file.

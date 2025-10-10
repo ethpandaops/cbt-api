@@ -1,4 +1,4 @@
-.PHONY: help install-tools generate build run clean fmt lint test
+.PHONY: help install-tools generate build run clean fmt lint test unit-test integration-test export-test-data
 
 # Colors for output
 CYAN := \033[0;36m
@@ -9,7 +9,7 @@ RESET := \033[0m
 
 # xatu-cbt repository configuration
 XATU_CBT_REPO := https://github.com/ethpandaops/xatu-cbt.git
-XATU_CBT_VERSION ?= 2ea700f24c4480c96e8f58e4c53960dfccdbecda
+XATU_CBT_VERSION ?= 782d9d468e26aecb145e383a957d89a138ec889b
 XATU_CBT_DIR := ./.xatu-cbt
 
 # Paths
@@ -18,6 +18,11 @@ TMP_DIR := ./tmp
 OUTPUT_FILE := ./openapi.yaml
 PREPROCESS_TOOL := ./cmd/tools/openapi-preprocess
 POSTPROCESS_TOOL := ./cmd/tools/openapi-postprocess
+
+# Test data export configuration (for exporting from production ClickHouse)
+TESTDATA_EXPORT_HOST ?= http://localhost:8123
+TESTDATA_EXPORT_DATABASE ?= mainnet
+TESTDATA_DIR := internal/integrationtest/testdata
 
 # Get googleapis path
 GOOGLEAPIS_PATH := $(shell go list -m -f '{{.Dir}}' github.com/googleapis/googleapis 2>/dev/null || echo "")
@@ -37,7 +42,12 @@ help: ## Show this help message
 	@echo "  $(CYAN)make clean$(RESET)          # Remove generated files and build artifacts"
 	@echo "  $(CYAN)make fmt$(RESET)            # Format Go code"
 	@echo "  $(CYAN)make lint$(RESET)           # Run linters"
-	@echo "  $(CYAN)make test$(RESET)           # Run tests"
+	@echo "  $(CYAN)make test$(RESET)           # Run all tests (unit + integration)"
+	@echo ""
+	@echo "$(GREEN)Testing:$(RESET)"
+	@echo "  $(CYAN)make unit-test$(RESET)      # Run unit tests only"
+	@echo "  $(CYAN)make integration-test$(RESET) # Run integration tests"
+	@echo "  $(CYAN)make export-test-data$(RESET) # Export test data from production ClickHouse"
 
 # Install required development tools (one-time setup)
 install-tools:
@@ -93,7 +103,7 @@ run: build
 	@go build -o bin/openapi-preprocess $(PREPROCESS_TOOL)
 	@echo "$(GREEN)✓ Built: bin/openapi-preprocess$(RESET)"
 
-.openapi: .build-tools .clone-xatu-cbt
+.openapi: .build-tools .clone-xatu-cbt .generate-descriptors
 	@echo "$(CYAN)==> Generating OpenAPI 3.0 from annotated protos...$(RESET)"
 	@mkdir -p $(TMP_DIR)
 	@if [ -z "$(GOOGLEAPIS_PATH)" ]; then \
@@ -112,7 +122,8 @@ run: build
 	@go run $(PREPROCESS_TOOL) \
 		--input $(TMP_DIR)/openapi.yaml \
 		--output $(OUTPUT_FILE) \
-		--proto-path $(PROTO_PATH)
+		--proto-path $(PROTO_PATH) \
+		--descriptor .descriptors.pb
 	@echo "$(GREEN)✓ Pre-processed spec generated: $(OUTPUT_FILE)$(RESET)"
 
 .generate-descriptors: .clone-xatu-cbt
@@ -123,7 +134,8 @@ run: build
 		--include_imports \
 		--proto_path=$(XATU_CBT_DIR)/pkg/proto/clickhouse \
 		--proto_path=$$GOOGLEAPIS_PATH \
-		$(XATU_CBT_DIR)/pkg/proto/clickhouse/*.proto
+		$(XATU_CBT_DIR)/pkg/proto/clickhouse/*.proto \
+		$(XATU_CBT_DIR)/pkg/proto/clickhouse/clickhouse/*.proto
 	@echo "$(GREEN)✓ Protobuf descriptors generated: .descriptors.pb$(RESET)"
 
 .generate-server: .openapi .generate-descriptors
@@ -171,8 +183,33 @@ lint:
 		echo "$(YELLOW)golangci-lint not installed, skipping...$(RESET)"; \
 	fi
 
-# Run tests
-test:
-	@echo "$(CYAN)==> Running tests...$(RESET)"
+# Export test data from production ClickHouse
+# Auto-detects tables from openapi.yaml (any table exposed via API)
+export-test-data:
+	@echo "$(CYAN)==> Exporting test data from $(TESTDATA_EXPORT_HOST) database $(TESTDATA_EXPORT_DATABASE)...$(RESET)"
+	@mkdir -p $(TESTDATA_DIR)
+	@echo "$(CYAN)==> Auto-detecting tables from openapi.yaml...$(RESET)"
+	@for table in $$(grep -oE '/api/v1/[a-z_0-9]+' openapi.yaml | sed 's|/api/v1/||' | sort -u); do \
+		echo "$(CYAN)  -> Exporting $$table...$(RESET)"; \
+		curl -sS "$(TESTDATA_EXPORT_HOST)" \
+			--data-binary "SELECT * FROM $(TESTDATA_EXPORT_DATABASE).$$table FINAL LIMIT 2 FORMAT JSON" \
+			-o "$(TESTDATA_DIR)/$$table.json" || echo "$(YELLOW)  ⚠️  Failed to export $$table (may be empty or inaccessible)$(RESET)"; \
+	done
+	@echo "$(GREEN)✓ Test data exported to $(TESTDATA_DIR)/$(RESET)"
+
+# Run all tests (unit + integration)
+test: unit-test integration-test
+	@echo "$(GREEN)✓ All tests passed$(RESET)"
+
+# Run unit tests only (excludes integration tests)
+unit-test:
+	@echo "$(CYAN)==> Running unit tests...$(RESET)"
 	@go install gotest.tools/gotestsum@latest
-	@gotestsum --raw-command go test -v -race -failfast -json ./...
+	@gotestsum --raw-command go test -v -race -failfast -coverprofile=coverage.out -covermode=atomic -json $$(go list ./... | grep -v /integrationtest) && \
+		echo "$(GREEN)✓ Unit tests passed$(RESET)"
+
+# Run integration tests
+integration-test:
+	@echo "$(CYAN)==> Running integration tests...$(RESET)"
+	@bash -c "set -o pipefail; go test -v -race -timeout=5m ./internal/integrationtest/... | tee integration-test.log" && \
+		echo "$(GREEN)✓ Integration tests passed$(RESET)"

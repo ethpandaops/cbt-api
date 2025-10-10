@@ -275,8 +275,16 @@ func parseType(name string, schema *openapi3.Schema) *Type {
 		for propName, propRef := range schema.Properties {
 			if propRef.Value != nil {
 				var propType string
+
 				if propRef.Value.Type != nil && len(propRef.Value.Type.Slice()) > 0 {
-					propType = propRef.Value.Type.Slice()[0]
+					baseType := propRef.Value.Type.Slice()[0]
+
+					// Handle array types specially
+					if baseType == "array" {
+						propType = "array"
+					} else {
+						propType = baseType
+					}
 				}
 
 				field := Field{
