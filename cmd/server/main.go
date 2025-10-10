@@ -13,6 +13,7 @@ import (
 	"github.com/ethpandaops/xatu-cbt-api/internal/config"
 	"github.com/ethpandaops/xatu-cbt-api/internal/server"
 	"github.com/ethpandaops/xatu-cbt-api/internal/telemetry"
+	"github.com/ethpandaops/xatu-cbt-api/internal/version"
 )
 
 func main() {
@@ -24,6 +25,12 @@ func main() {
 	})
 	logger.SetOutput(os.Stdout)
 	logger.SetLevel(logrus.InfoLevel)
+
+	// Log version information
+	logger.WithFields(logrus.Fields{
+		"version":  version.Short(),
+		"platform": version.FullWithPlatform(),
+	}).Info("Starting xatu-cbt-api")
 
 	// Load config
 	cfg, err := config.Load()

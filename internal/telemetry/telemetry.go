@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/ethpandaops/xatu-cbt-api/internal/config"
+	"github.com/ethpandaops/xatu-cbt-api/internal/version"
 )
 
 // Service defines the telemetry service interface.
@@ -61,6 +62,7 @@ func (s *service) Start(ctx context.Context) error {
 	s.log.WithFields(logrus.Fields{
 		"endpoint":     s.config.Endpoint,
 		"service_name": s.config.ServiceName,
+		"version":      version.Short(),
 		"environment":  s.config.Environment,
 		"network_name": s.networkName,
 		"sample_rate":  s.config.SampleRate,
@@ -167,7 +169,7 @@ func (s *service) createResource() (*resource.Resource, error) {
 		resource.Default(),
 		resource.NewSchemaless(
 			semconv.ServiceName(s.config.ServiceName),
-			semconv.ServiceVersion(s.config.ServiceVersion),
+			semconv.ServiceVersion(version.Short()),
 			AttrNetworkName.String(s.networkName),
 		),
 	)

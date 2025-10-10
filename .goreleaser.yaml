@@ -13,10 +13,12 @@ builds:
     binary: server
     goos:
     - linux
-    goarch: 
+    goarch:
     - amd64
     ldflags:
       - -s -w
+      - -X github.com/ethpandaops/xatu-cbt-api/internal/version.Release={{.Tag}}-{{.ShortCommit}}
+      - -X github.com/ethpandaops/xatu-cbt-api/internal/version.GitCommit={{.ShortCommit}}
     mod_timestamp: "{{ .CommitTimestamp }}"
 
   - id: linux-arm64
@@ -24,12 +26,14 @@ builds:
       - CGO_ENABLED=0
     main: ./cmd/server
     binary: server
-    goos: 
+    goos:
     - linux
-    goarch: 
+    goarch:
     - arm64
     ldflags:
       - -s -w
+      - -X github.com/ethpandaops/xatu-cbt-api/internal/version.Release={{.Tag}}-{{.ShortCommit}}
+      - -X github.com/ethpandaops/xatu-cbt-api/internal/version.GitCommit={{.ShortCommit}}
     mod_timestamp: "{{ .CommitTimestamp }}"
 checksum:
   name_template: 'checksums.txt'
@@ -60,6 +64,8 @@ dockers:
       - "ethpandaops/{{ .ProjectName }}:{{ if .Env.RELEASE_SUFFIX }}{{ .Env.RELEASE_SUFFIX }}-{{ end }}latest-amd64"
     build_flag_templates:
       - "--platform=linux/amd64"
+      - "--build-arg=VERSION={{.Tag}}"
+      - "--build-arg=GIT_COMMIT={{.ShortCommit}}"
       - "--label=org.opencontainers.image.created={{.Date}}"
       - "--label=org.opencontainers.image.title={{.ProjectName}}"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
@@ -81,6 +87,8 @@ dockers:
       - "ethpandaops/{{ .ProjectName }}:{{ if .Env.RELEASE_SUFFIX }}{{ .Env.RELEASE_SUFFIX }}-{{ end }}latest-arm64v8"
     build_flag_templates:
       - "--platform=linux/arm64/v8"
+      - "--build-arg=VERSION={{.Tag}}"
+      - "--build-arg=GIT_COMMIT={{.ShortCommit}}"
       - "--label=org.opencontainers.image.created={{.Date}}"
       - "--label=org.opencontainers.image.title={{.ProjectName}}"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"

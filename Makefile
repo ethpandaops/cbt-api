@@ -87,10 +87,22 @@ install-tools:
 generate: .clone-xatu-cbt .build-tools .openapi .generate-descriptors .generate-server
 	@printf "$(GREEN)✓ Code generation complete$(RESET)\n"
 
+# Version information
+VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo "dev")
+GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "dev")
+BUILD_DATE := $(shell date -u '+%Y-%m-%d_%H:%M:%S')
+DIRTY_SUFFIX := $(shell git diff --quiet || echo "-dirty")
+
+# Build ldflags
+LDFLAGS := -s -w \
+	-X github.com/ethpandaops/xatu-cbt-api/internal/version.Release=$(VERSION)-$(GIT_COMMIT)$(DIRTY_SUFFIX) \
+	-X github.com/ethpandaops/xatu-cbt-api/internal/version.GitCommit=$(GIT_COMMIT)
+
 # Build the API server binary
 build:
 	@printf "$(CYAN)==> Building API server...$(RESET)\n"
-	@go build -o bin/server ./cmd/server
+	@printf "$(CYAN)    Version: $(VERSION)-$(GIT_COMMIT)$(DIRTY_SUFFIX)$(RESET)\n"
+	@go build -ldflags "$(LDFLAGS)" -o bin/server ./cmd/server
 	@printf "$(GREEN)✓ Server built: bin/server$(RESET)\n"
 
 # Run the API server
