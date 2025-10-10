@@ -6,9 +6,13 @@ WORKDIR /build
 
 COPY . .
 
+# Build arguments for version info
+ARG VERSION=dev
+ARG GIT_COMMIT=dev
+
 RUN make install-tools
 RUN make generate
-RUN make build
+RUN VERSION=${VERSION} GIT_COMMIT=${GIT_COMMIT} make build
 
 FROM alpine:latest
 
