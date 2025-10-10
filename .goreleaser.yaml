@@ -5,6 +5,7 @@ project_name: xatu-cbt-api
 before:
   hooks:
     - go mod tidy
+    - make generate
 builds:
   - id: linux-amd64
     env:

@@ -1,15 +1,16 @@
 FROM golang:1.25.1-alpine AS builder
 
-RUN apk add --no-cache git make ca-certificates
+RUN apk add --no-cache git make ca-certificates protobuf-dev protoc
 
 WORKDIR /build
 
-COPY go.mod go.sum ./
-RUN go mod download
-
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-s -w" -o server ./cmd/server
+RUN make install-tools
+# Generate OpenAPI spec
+RUN make generate
+# Build the server
+RUN make build
 
 FROM alpine:latest
 
@@ -19,7 +20,7 @@ RUN apk --no-cache add ca-certificates && \
 
 WORKDIR /app
 
-COPY --from=builder /build/server .
+COPY --from=builder /build/bin/server .
 
 RUN chown -R appuser:appuser /app
 
