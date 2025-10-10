@@ -7,14 +7,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"strings"
-	"unsafe"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"gopkg.in/yaml.v3"
 )
@@ -733,21 +732,15 @@ func loadProtoAnnotations(descriptorPath string) (ProtoFieldAnnotations, error) 
 
 				var annot FieldAnnotations
 
-				// Check for custom extensions in unknownFields (unexported field)
+				// Read custom extensions using protoreflect API (proper way)
 				if field.Options != nil {
-					// Access unexported unknownFields using reflection
-					uf := getUnknownFields(field.Options)
-					if len(uf) > 0 {
-						// Read extensions from unknown fields
-						// Extensions are stored as tag-value pairs in unknown fields
-						annot.RequiredGroup = readStringExtension(uf, requiredGroupExtension)
-						annot.ProjectionName = readStringExtension(uf, projectionNameExtension)
-						annot.ProjectionAlternativeFor = readStringExtension(uf, projectionAltForExtension)
+					annot.RequiredGroup = getStringExtension(field.Options, requiredGroupExtension)
+					annot.ProjectionName = getStringExtension(field.Options, projectionNameExtension)
+					annot.ProjectionAlternativeFor = getStringExtension(field.Options, projectionAltForExtension)
 
-						// Store if any annotations found
-						if annot.RequiredGroup != "" || annot.ProjectionName != "" || annot.ProjectionAlternativeFor != "" {
-							annotations[key] = annot
-						}
+					// Store if any annotations found
+					if annot.RequiredGroup != "" || annot.ProjectionName != "" || annot.ProjectionAlternativeFor != "" {
+						annotations[key] = annot
 					}
 				}
 			}
@@ -757,61 +750,73 @@ func loadProtoAnnotations(descriptorPath string) (ProtoFieldAnnotations, error) 
 	return annotations, nil
 }
 
-// getUnknownFields uses reflection to access the unexported unknownFields field.
-func getUnknownFields(opts *descriptorpb.FieldOptions) []byte {
+// getStringExtension reads a string extension from FieldOptions using protoreflect API.
+// This is the proper way to read proto extensions without using unsafe pointers.
+func getStringExtension(opts *descriptorpb.FieldOptions, fieldNum int) string {
 	if opts == nil {
-		return nil
-	}
-
-	// Use reflection to access the unexported unknownFields field
-	v := reflect.ValueOf(opts).Elem()
-
-	field := v.FieldByName("unknownFields")
-	if !field.IsValid() {
-		return nil
-	}
-
-	// Get the byte slice using unsafe pointer
-	ptr := unsafe.Pointer(field.UnsafeAddr())
-
-	return *(*[]byte)(ptr)
-}
-
-// readStringExtension reads a string extension value from unknown fields.
-func readStringExtension(uf []byte, fieldNum int) string {
-	if len(uf) == 0 {
 		return ""
 	}
 
-	// Parse protobuf wire format to find the extension
-	// Wire format: tag (field num << 3 | wire type), length, data
-	// String fields use wire type 2 (length-delimited)
-	targetTag := protowire.Number(fieldNum) //nolint:gosec // safe.
+	// Use protoreflect to access extensions properly
+	msg := opts.ProtoReflect()
 
-	b := uf
+	// Get the field descriptor for this extension number
+	fieldDesc := msg.Descriptor().Fields().ByNumber(protoreflect.FieldNumber(fieldNum)) //nolint:gosec // fine.
+
+	// If the field is not known in the descriptor, check unknown fields
+	// Extensions may be stored in unknown fields if not registered
+	if fieldDesc == nil {
+		// Range over unknown fields to find our extension
+		unknownFields := msg.GetUnknown()
+		if len(unknownFields) == 0 {
+			return ""
+		}
+
+		// Parse unknown fields manually, but using the proper protoreflect API
+		// instead of unsafe pointer access
+		return parseStringFromUnknownFields(unknownFields, fieldNum)
+	}
+
+	// If field is known, get it properly
+	if msg.Has(fieldDesc) {
+		value := msg.Get(fieldDesc)
+
+		return value.String()
+	}
+
+	return ""
+}
+
+// parseStringFromUnknownFields parses string extension from unknown fields.
+// Uses protowire (the official parser) instead of unsafe pointer access.
+func parseStringFromUnknownFields(unknownFields protoreflect.RawFields, targetFieldNum int) string {
+	b := []byte(unknownFields)
+	targetNum := protoreflect.FieldNumber(targetFieldNum) //nolint:gosec // fine.
+
+	// Parse using official protowire API
 	for len(b) > 0 {
-		// Consume field tag
 		num, typ, n := protowire.ConsumeTag(b)
 		if n < 0 {
-			break
+			return "" // invalid tag
 		}
 
 		b = b[n:]
 
-		if num == targetTag && typ == protowire.BytesType {
-			// Consume string value
-			v, n1 := protowire.ConsumeBytes(b)
+		// Check if this is our target field
+		if num == targetNum && typ == protowire.BytesType {
+			// Found it - read the string value
+			val, n1 := protowire.ConsumeBytes(b)
 			if n1 < 0 {
-				break
+				return "" // invalid value
 			}
 
-			return string(v)
+			return string(val)
 		}
 
-		// Skip this field
+		// Skip this field and continue
 		n = protowire.ConsumeFieldValue(num, typ, b)
 		if n < 0 {
-			break
+			return "" // invalid field
 		}
 
 		b = b[n:]
