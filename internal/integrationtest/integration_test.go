@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -286,30 +287,10 @@ func waitForServer(healthURL string, timeout time.Duration) error {
 func parseHealthURLToAddress(healthURL string) (string, error) {
 	// healthURL is like "http://localhost:18080/health"
 	// We need "localhost:18080"
-	if len(healthURL) < 7 {
-		return "", fmt.Errorf("invalid health URL")
+	u, err := url.Parse(healthURL)
+	if err != nil {
+		return "", fmt.Errorf("invalid health URL: %w", err)
 	}
 
-	// Remove http:// or https://
-	url := healthURL
-	if url[:7] == "http://" {
-		url = url[7:]
-	} else if len(url) > 8 && url[:8] == "https://" {
-		url = url[8:]
-	}
-
-	// Find the first / to strip path
-	if idx := len(url); idx > 0 {
-		for i := 0; i < len(url); i++ {
-			if url[i] == '/' {
-				idx = i
-
-				break
-			}
-		}
-
-		url = url[:idx]
-	}
-
-	return url, nil
+	return u.Host, nil
 }

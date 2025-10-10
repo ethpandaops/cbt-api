@@ -65,7 +65,9 @@ func TestRecovery(t *testing.T) {
 			name: "handles panic after partial response write",
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
+
 				_, _ = w.Write([]byte("partial"))
+
 				panic("panic after write")
 			},
 			expectPanic:        true,

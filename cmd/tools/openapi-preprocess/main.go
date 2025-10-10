@@ -887,8 +887,24 @@ func operationIDToMessageName(operationID string) string {
 // convertParamToFieldName converts a parameter name to proto field name.
 // e.g., "slot_start_date_time_gte" -> "slot_start_date_time".
 func convertParamToFieldName(paramName string) string {
-	// Remove common filter suffixes
-	suffixes := []string{"_eq", "_ne", "_lt", "_lte", "_gt", "_gte", "_between_min", "_between_max_value", "_in_values", "_not_in_values", "_contains", "_starts_with", "_ends_with", "_like", "_not_like"}
+	// Remove filter suffixes (longest first to handle multi-part suffixes)
+	suffixes := []string{
+		"_between_max_value",
+		"_not_in_values",
+		"_starts_with",
+		"_ends_with",
+		"_in_values",
+		"_between_min",
+		"_not_like",
+		"_contains",
+		"_like",
+		"_gte",
+		"_lte",
+		"_eq",
+		"_ne",
+		"_lt",
+		"_gt",
+	}
 
 	for _, suffix := range suffixes {
 		if strings.HasSuffix(paramName, suffix) {

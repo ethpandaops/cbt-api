@@ -1,4 +1,4 @@
-.PHONY: help install-tools generate build run clean fmt lint test unit-test integration-test integration-test-quick export-test-data
+.PHONY: help install-tools generate build run clean fmt lint test unit-test integration-test export-test-data
 
 # Colors for output
 CYAN := \033[0;36m
@@ -47,7 +47,6 @@ help: ## Show this help message
 	@echo "$(GREEN)Testing:$(RESET)"
 	@echo "  $(CYAN)make unit-test$(RESET)      # Run unit tests only"
 	@echo "  $(CYAN)make integration-test$(RESET) # Run integration tests"
-	@echo "  $(CYAN)make integration-test-quick$(RESET) # Run integration tests (fast, no race detector)"
 	@echo "  $(CYAN)make export-test-data$(RESET) # Export test data from production ClickHouse"
 
 # Install required development tools (one-time setup)
@@ -212,11 +211,5 @@ unit-test:
 # Run integration tests
 integration-test:
 	@echo "$(CYAN)==> Running integration tests...$(RESET)"
-	@set -o pipefail; go test -v -race -timeout=5m ./internal/integrationtest/... | tee integration-test.log && \
-		echo "$(GREEN)✓ Integration tests passed$(RESET)"
-
-# Run integration tests (fast, no race detector)
-integration-test-quick:
-	@echo "$(CYAN)==> Running integration tests (quick mode)...$(RESET)"
-	@go test -v -timeout=3m ./internal/integrationtest/... && \
+	@bash -c "set -o pipefail; go test -v -race -timeout=5m ./internal/integrationtest/... | tee integration-test.log" && \
 		echo "$(GREEN)✓ Integration tests passed$(RESET)"
