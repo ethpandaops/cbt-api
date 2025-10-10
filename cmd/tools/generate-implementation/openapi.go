@@ -143,15 +143,27 @@ func parseParam(p *openapi3.Parameter) Param {
 
 	// Extract field and operator from underscore notation
 	// "slot_gte" → field: "slot", operator: "gte"
+	// "slot_not_in_values" → field: "slot", operator: "not_in_values"
 	parts := strings.Split(p.Name, "_")
 	if len(parts) >= 2 {
+		// Check for three-part operators first (e.g., "not_in_values")
+		if len(parts) >= 4 {
+			lastThreeParts := parts[len(parts)-3] + "_" + parts[len(parts)-2] + "_" + parts[len(parts)-1]
+			if isFilterOperator(lastThreeParts) {
+				param.Operator = lastThreeParts
+				param.Field = strings.Join(parts[:len(parts)-3], "_")
+
+				return param
+			}
+		}
+
 		// Check if last part is an operator
 		lastPart := parts[len(parts)-1]
 		if isFilterOperator(lastPart) {
 			param.Operator = lastPart
 			param.Field = strings.Join(parts[:len(parts)-1], "_")
 		} else if len(parts) >= 3 {
-			// Check for two-part operators like "not_in"
+			// Check for two-part operators like "not_in", "is_null"
 			lastTwoParts := parts[len(parts)-2] + "_" + parts[len(parts)-1]
 			if isFilterOperator(lastTwoParts) {
 				param.Operator = lastTwoParts
@@ -195,6 +207,10 @@ func isFilterOperator(s string) bool {
 		"in":      true,
 		"not_in":  true,
 		"between": true,
+
+		// Array operators (for numeric filters)
+		"in_values":     true,
+		"not_in_values": true,
 
 		// String operators
 		"contains":    true,

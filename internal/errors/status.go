@@ -60,6 +60,8 @@ type Detail map[string]any
 
 // Status represents a logical error model compatible with google.rpc.Status.
 // This matches the Status schema in the OpenAPI specification.
+//
+//nolint:errname // Intentionally named "Status" to match google.rpc.Status convention
 type Status struct {
 	// Code is the status code, which should be an enum value of google.rpc.Code.
 	Code Code `json:"code"`

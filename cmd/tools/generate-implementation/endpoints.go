@@ -352,8 +352,8 @@ func generateBuilderArgs(params []Param, filterType string) string {
 			}
 		}
 	} else {
-		// Numeric filters: eq, ne, lt, lte, gt, gte, in, not_in
-		for _, op := range []string{"eq", "ne", "lt", "lte", "gt", "gte", "in", "not_in"} {
+		// Numeric filters: eq, ne, lt, lte, gt, gte, in_values, not_in_values
+		for _, op := range []string{"eq", "ne", "lt", "lte", "gt", "gte", "in_values", "not_in_values"} {
 			if arg, ok := argMap[op]; ok {
 				args = append(args, arg)
 			} else {
