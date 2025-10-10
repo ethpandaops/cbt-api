@@ -11,6 +11,7 @@ import (
 
 	"github.com/ethpandaops/xatu-cbt-api/internal/config"
 	"github.com/ethpandaops/xatu-cbt-api/internal/database"
+	apierrors "github.com/ethpandaops/xatu-cbt-api/internal/errors"
 	"github.com/ethpandaops/xatu-cbt-api/internal/handlers"
 	"github.com/ethpandaops/xatu-cbt-api/internal/middleware"
 	"github.com/ethpandaops/xatu-cbt-api/internal/telemetry"
@@ -56,12 +57,15 @@ func New(cfg *config.Config, logger logrus.FieldLogger) (*http.Server, error) {
 		httpSwagger.URL("/openapi.yaml"),
 	))
 
-	// Register generated API handlers
-	handlers.HandlerFromMux(impl, mux)
+	// Register generated API handlers with custom error handler
+	handlers.HandlerWithOptions(impl, handlers.StdHTTPServerOptions{
+		BaseRouter:       mux,
+		ErrorHandlerFunc: apierrors.DefaultErrorHandler(logger),
+	})
 
 	// Apply middleware stack (wrap the mux)
 	handler := middleware.Logging(logger)(mux)
-	handler = middleware.QueryParameterValidation(logger)(handler)
+	handler = middleware.RouteValidation(logger)(handler)
 	handler = middleware.CORS()(handler)
 	handler = middleware.Recovery(logger)(handler)
 	handler = middleware.Metrics()(handler)

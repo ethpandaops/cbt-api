@@ -1,19 +1,21 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 	"sort"
 	"strings"
 
+	apierrors "github.com/ethpandaops/xatu-cbt-api/internal/errors"
 	"github.com/ethpandaops/xatu-cbt-api/internal/handlers"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/sirupsen/logrus"
 )
 
-// QueryParameterValidation returns a middleware that validates query parameters
-// against the OpenAPI specification, returning 400 Bad Request for unknown parameters.
-func QueryParameterValidation(logger logrus.FieldLogger) func(http.Handler) http.Handler {
+// RouteValidation returns a middleware that validates routes and query parameters
+// against the OpenAPI specification, returning:
+// - 404 Not Found for unknown paths/methods
+// - 400 Bad Request for unknown query parameters
+func RouteValidation(logger logrus.FieldLogger) func(http.Handler) http.Handler {
 	// Load OpenAPI spec once at initialization
 	swagger, err := handlers.GetSwagger()
 	if err != nil {
@@ -25,9 +27,9 @@ func QueryParameterValidation(logger logrus.FieldLogger) func(http.Handler) http
 			// Find the operation for this path and method
 			pathItem := swagger.Paths.Find(r.URL.Path)
 			if pathItem == nil {
-				// Path not found in spec, let it pass through
-				// (will be handled by 404 handler)
-				next.ServeHTTP(w, r)
+				// Path not found in spec - return 404
+				status := apierrors.NotFoundf("path not found: %s", r.URL.Path)
+				status.WriteJSON(w)
 
 				return
 			}
@@ -48,8 +50,13 @@ func QueryParameterValidation(logger logrus.FieldLogger) func(http.Handler) http
 			}
 
 			if operation == nil {
-				// Method not found in spec, let it pass through
-				next.ServeHTTP(w, r)
+				// Method not allowed for this path - return 404
+				status := apierrors.NotFoundf(
+					"method %s not allowed for path: %s",
+					r.Method,
+					r.URL.Path,
+				)
+				status.WriteJSON(w)
 
 				return
 			}
@@ -76,7 +83,7 @@ func QueryParameterValidation(logger logrus.FieldLogger) func(http.Handler) http
 				// Sort for consistent error messages
 				sort.Strings(unknownParams)
 
-				// Build list of valid parameters for error message
+				// Build list of valid parameters for error details
 				validParamList := make([]string, 0, len(validParams))
 				for param := range validParams {
 					validParamList = append(validParamList, param)
@@ -84,16 +91,16 @@ func QueryParameterValidation(logger logrus.FieldLogger) func(http.Handler) http
 
 				sort.Strings(validParamList)
 
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusBadRequest)
-
-				errorMsg := fmt.Sprintf(
-					`{"error":"unknown query parameter(s): %s","valid_parameters":["%s"]}`,
+				// Create Status error with metadata
+				status := apierrors.BadRequestf(
+					"unknown query parameter(s): %s",
 					strings.Join(unknownParams, ", "),
-					strings.Join(validParamList, `","`),
-				)
+				).WithMetadata(map[string]string{
+					"unknown_parameters": strings.Join(unknownParams, ", "),
+					"valid_parameters":   strings.Join(validParamList, ", "),
+				})
 
-				_, _ = w.Write([]byte(errorMsg))
+				status.WriteJSON(w)
 
 				return
 			}
