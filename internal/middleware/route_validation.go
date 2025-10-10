@@ -13,8 +13,8 @@ import (
 
 // RouteValidation returns a middleware that validates routes and query parameters
 // against the OpenAPI specification, returning:
-// - 404 Not Found for unknown paths/methods
-// - 400 Bad Request for unknown query parameters
+// - 404 Not Found for unknown paths/methods.
+// - 400 Bad Request for unknown query parameters.
 func RouteValidation(logger logrus.FieldLogger) func(http.Handler) http.Handler {
 	// Load OpenAPI spec once at initialization
 	swagger, err := handlers.GetSwagger()

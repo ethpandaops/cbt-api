@@ -56,6 +56,7 @@ func TestStatus_WriteJSON(t *testing.T) {
 			assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 			var result Status
+
 			err := json.Unmarshal(rec.Body.Bytes(), &result)
 			require.NoError(t, err)
 

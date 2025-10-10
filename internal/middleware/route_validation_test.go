@@ -123,6 +123,7 @@ func TestRouteValidation(t *testing.T) {
 			// For error responses, verify Status format
 			if tt.expectedStatus != http.StatusOK {
 				var status apierrors.Status
+
 				err := json.Unmarshal(rec.Body.Bytes(), &status)
 				require.NoError(t, err, "should be valid JSON Status")
 
