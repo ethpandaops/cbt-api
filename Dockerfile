@@ -1,15 +1,13 @@
 FROM golang:1.25.1-alpine AS builder
 
-RUN apk add --no-cache git make ca-certificates protobuf-dev protoc
+RUN apk add --no-cache make git ca-certificates
 
 WORKDIR /build
 
 COPY . .
 
 RUN make install-tools
-# Generate OpenAPI spec
 RUN make generate
-# Build the server
 RUN make build
 
 FROM alpine:latest

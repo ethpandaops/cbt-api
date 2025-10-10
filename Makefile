@@ -45,7 +45,18 @@ install-tools:
 	@if ! command -v protoc >/dev/null 2>&1; then \
 		echo "$(YELLOW)==> Installing protoc...$(RESET)"; \
 		if [ "$$(uname)" = "Linux" ]; then \
-			sudo apt-get update && sudo apt-get install -y protobuf-compiler; \
+			if command -v apk >/dev/null 2>&1; then \
+				apk add --no-cache protobuf-dev protoc; \
+			elif command -v apt-get >/dev/null 2>&1; then \
+				if [ "$$(id -u)" -eq 0 ]; then \
+					apt-get update && apt-get install -y protobuf-compiler; \
+				else \
+					sudo apt-get update && sudo apt-get install -y protobuf-compiler; \
+				fi; \
+			else \
+				echo "$(RED)Error: No supported package manager found$(RESET)"; \
+				exit 1; \
+			fi; \
 		elif [ "$$(uname)" = "Darwin" ]; then \
 			brew install protobuf; \
 		else \
