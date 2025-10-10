@@ -61,6 +61,7 @@ import (
 
 	"github.com/ethpandaops/xatu-cbt-api/internal/config"
 	"github.com/ethpandaops/xatu-cbt-api/internal/database"
+	apierrors "github.com/ethpandaops/xatu-cbt-api/internal/errors"
 	"github.com/ethpandaops/xatu-cbt-api/internal/handlers"
 	clickhouse "github.com/ethpandaops/xatu-cbt/pkg/proto/clickhouse"
 	"go.opentelemetry.io/otel"
@@ -251,11 +252,20 @@ func writeJSON(w http.ResponseWriter, data any) {
 }
 
 func writeError(w http.ResponseWriter, status int, err error) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]string{
-		"error": err.Error(),
-	})
+	// Map HTTP status to appropriate Status error
+	var apiErr *apierrors.Status
+	switch status {
+	case http.StatusBadRequest:
+		apiErr = apierrors.BadRequest(err.Error())
+	case http.StatusNotFound:
+		apiErr = apierrors.NotFound(err.Error())
+	case http.StatusInternalServerError:
+		apiErr = apierrors.Internal(err.Error())
+	default:
+		apiErr = apierrors.Internal(err.Error())
+	}
+
+	apiErr.WriteJSON(w)
 }
 
 func generateNextPageToken(currentToken string, itemCount int) string {

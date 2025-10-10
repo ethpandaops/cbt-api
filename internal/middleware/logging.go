@@ -21,6 +21,7 @@ func Logging(logger logrus.FieldLogger) func(http.Handler) http.Handler {
 			logger.WithFields(logrus.Fields{
 				"method":      r.Method,
 				"path":        r.URL.Path,
+				"query":       r.URL.RawQuery,
 				"status":      wrapped.statusCode,
 				"duration_ms": time.Since(start).Milliseconds(),
 				"remote_addr": r.RemoteAddr,
