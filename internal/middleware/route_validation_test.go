@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-func TestRouteValidation(t *testing.T) {
+func TestQueryParameterValidation(t *testing.T) {
 	// Create a test logger
 	logger := logrus.New()
 	logger.SetOutput(io.Discard)
@@ -43,22 +43,11 @@ func TestRouteValidation(t *testing.T) {
 			expectedStatus: http.StatusOK,
 		},
 		{
-			name:                  "invalid path returns 404",
-			path:                  "/api/v1/does_not_exist",
-			method:                http.MethodGet,
-			queryParams:           "",
-			expectedStatus:        http.StatusNotFound,
-			expectedCode:          codes.NotFound,
-			expectedMessagePrefix: "path not found:",
-		},
-		{
-			name:                  "invalid method returns 404",
-			path:                  "/api/v1/fct_block",
-			method:                http.MethodPost,
-			queryParams:           "",
-			expectedStatus:        http.StatusNotFound,
-			expectedCode:          codes.NotFound,
-			expectedMessagePrefix: "method POST not allowed",
+			name:           "unknown path passes through (handled by mux)",
+			path:           "/api/v1/does_not_exist",
+			method:         http.MethodGet,
+			queryParams:    "",
+			expectedStatus: http.StatusOK, // Passes through, mux will handle 404
 		},
 		{
 			name:                  "invalid query parameter",
@@ -111,7 +100,7 @@ func TestRouteValidation(t *testing.T) {
 			rec := httptest.NewRecorder()
 
 			// Apply middleware
-			middleware := RouteValidation(logger)
+			middleware := QueryParameterValidation(logger)
 			handler := middleware(testHandler)
 
 			// Execute request

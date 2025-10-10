@@ -65,7 +65,7 @@ func New(cfg *config.Config, logger logrus.FieldLogger) (*http.Server, error) {
 
 	// Apply middleware stack (wrap the mux)
 	handler := middleware.Logging(logger)(mux)
-	handler = middleware.RouteValidation(logger)(handler)
+	handler = middleware.QueryParameterValidation(logger)(handler)
 	handler = middleware.CORS()(handler)
 	handler = middleware.Recovery(logger)(handler)
 	handler = middleware.Metrics()(handler)
