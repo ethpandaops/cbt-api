@@ -30,7 +30,6 @@ func New(cfg *config.Config, logger logrus.FieldLogger) (*http.Server, error) {
 	impl := &Server{
 		db:     db,
 		config: cfg,
-		log:    logger.WithField("module", "server"),
 	}
 
 	// Setup router using native http.ServeMux with method routing
