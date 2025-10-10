@@ -11,6 +11,7 @@ import (
 type Config struct {
 	Server     ServerConfig     `mapstructure:"server"`
 	ClickHouse ClickHouseConfig `mapstructure:"clickhouse"`
+	Telemetry  TelemetryConfig  `mapstructure:"telemetry"`
 }
 
 // ServerConfig holds server-specific configuration.
@@ -46,6 +47,29 @@ type ClickHouseConfig struct {
 	InsecureSkipVerify bool `mapstructure:"insecure_skip_verify"`
 }
 
+// TelemetryConfig holds OpenTelemetry configuration.
+type TelemetryConfig struct {
+	Enabled bool `mapstructure:"enabled"`
+
+	// OTLP exporter settings
+	Endpoint string            `mapstructure:"endpoint"` // e.g., "tempo.example.com:443"
+	Insecure bool              `mapstructure:"insecure"` // Use insecure connection (dev only)
+	Headers  map[string]string `mapstructure:"headers"`  // Auth headers (e.g., Authorization: Bearer <token>)
+
+	// Service identification
+	ServiceName    string `mapstructure:"service_name"`    // e.g., "xatu-cbt-api"
+	ServiceVersion string `mapstructure:"service_version"` // e.g., "1.0.0"
+	Environment    string `mapstructure:"environment"`     // e.g., "mainnet", "sepolia"
+
+	// Sampling configuration
+	SampleRate         float64 `mapstructure:"sample_rate"`          // 0.0 to 1.0 (e.g., 0.1 = 10%)
+	AlwaysSampleErrors bool    `mapstructure:"always_sample_errors"` // Always sample requests with status >= 400
+
+	// Export settings
+	ExportTimeout   time.Duration `mapstructure:"export_timeout"`    // OTLP export timeout
+	ExportBatchSize int           `mapstructure:"export_batch_size"` // Batch size for span processor
+}
+
 // Load loads configuration from file and environment variables.
 func Load() (*Config, error) {
 	viper.SetConfigName("config")
@@ -71,6 +95,17 @@ func Load() (*Config, error) {
 	viper.SetDefault("clickhouse.max_execution_time", 60)
 	viper.SetDefault("clickhouse.use_final", false)
 	viper.SetDefault("clickhouse.insecure_skip_verify", false)
+
+	// Telemetry defaults
+	viper.SetDefault("telemetry.enabled", false)
+	viper.SetDefault("telemetry.service_name", "xatu-cbt-api")
+	viper.SetDefault("telemetry.service_version", "unknown")
+	viper.SetDefault("telemetry.environment", "unknown")
+	viper.SetDefault("telemetry.sample_rate", 0.1)
+	viper.SetDefault("telemetry.always_sample_errors", true)
+	viper.SetDefault("telemetry.export_timeout", 10*time.Second)
+	viper.SetDefault("telemetry.export_batch_size", 512)
+	viper.SetDefault("telemetry.insecure", false)
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {

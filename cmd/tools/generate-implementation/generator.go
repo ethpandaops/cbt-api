@@ -72,7 +72,7 @@ import (
 func (g *CodeGenerator) generateServerStruct() string {
 	return `// Server implements the generated ServerInterface.
 type Server struct {
-	db     *database.Client
+	db     database.DatabaseClient
 	config *config.Config
 }`
 }

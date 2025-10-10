@@ -36,7 +36,7 @@ func TestCodeGenerator_generateServerStruct(t *testing.T) {
 	got := g.generateServerStruct()
 
 	assert.Contains(t, got, "type Server struct {")
-	assert.Contains(t, got, "db     *database.Client")
+	assert.Contains(t, got, "db     database.DatabaseClient")
 	assert.Contains(t, got, "config *config.Config")
 }
 

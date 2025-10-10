@@ -6,11 +6,13 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/sirupsen/logrus"
 
 	"github.com/ethpandaops/xatu-cbt-api/internal/config"
 	"github.com/ethpandaops/xatu-cbt-api/internal/server"
+	"github.com/ethpandaops/xatu-cbt-api/internal/telemetry"
 )
 
 func main() {
@@ -28,6 +30,24 @@ func main() {
 	if err != nil {
 		logger.WithError(err).Fatal("Failed to load config")
 	}
+
+	// Initialize telemetry (use database name as network label)
+	telemetryService := telemetry.NewService(&cfg.Telemetry, cfg.ClickHouse.Database, logger)
+
+	ctx := context.Background()
+	if err := telemetryService.Start(ctx); err != nil {
+		logger.WithError(err).Fatal("Failed to start telemetry")
+	}
+
+	// Ensure telemetry shutdown on exit
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if err := telemetryService.Stop(shutdownCtx); err != nil {
+			logger.WithError(err).Error("Failed to stop telemetry")
+		}
+	}()
 
 	// Create server
 	srv, err := server.New(cfg, logger)

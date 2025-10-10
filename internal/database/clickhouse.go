@@ -23,12 +23,25 @@ const (
 	PortClickHouseNativeTLS = ":9440"
 )
 
+// DatabaseClient defines the interface for database operations.
+// This interface allows for instrumentation wrappers (e.g., tracing) without modifying generated code.
+type DatabaseClient interface {
+	Query(ctx context.Context, query string, args ...any) (driver.Rows, error)
+	QueryRow(ctx context.Context, query string, args ...any) driver.Row
+	Select(ctx context.Context, dest any, query string, args ...any) error
+	Exec(ctx context.Context, query string, args ...any) error
+	Close() error
+}
+
 // Client wraps the official ClickHouse Go driver (native interface).
 type Client struct {
 	conn   driver.Conn
 	log    logrus.FieldLogger
 	config *config.ClickHouseConfig
 }
+
+// Ensure Client implements DatabaseClient interface
+var _ DatabaseClient = (*Client)(nil)
 
 // NewClient creates a new ClickHouse client using the official Go driver.
 func NewClient(cfg *config.ClickHouseConfig, logger logrus.FieldLogger) (*Client, error) {
