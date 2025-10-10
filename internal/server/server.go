@@ -60,7 +60,7 @@ func New(cfg *config.Config, logger logrus.FieldLogger) (*http.Server, error) {
 	handler = middleware.CORS()(handler)
 	handler = middleware.Recovery(logger)(handler)
 	handler = middleware.Metrics()(handler)
-	handler = middleware.Gzip()(handler)
+	handler = middleware.Gzip(middleware.WithExcludePaths("/metrics"))(handler)
 
 	return &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),

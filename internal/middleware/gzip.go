@@ -66,11 +66,43 @@ func (w *gzipResponseWriter) WriteHeader(code int) {
 	w.ResponseWriter.WriteHeader(code)
 }
 
+// GzipOption is a functional option for configuring the Gzip middleware.
+type GzipOption func(*gzipConfig)
+
+// gzipConfig holds the configuration for the Gzip middleware.
+type gzipConfig struct {
+	excludePaths map[string]bool
+}
+
+// WithExcludePaths returns a GzipOption that excludes specific paths from gzip compression.
+func WithExcludePaths(paths ...string) GzipOption {
+	return func(cfg *gzipConfig) {
+		for _, path := range paths {
+			cfg.excludePaths[path] = true
+		}
+	}
+}
+
 // Gzip returns a middleware that compresses HTTP responses using gzip.
 // It only compresses if the client supports gzip encoding.
-func Gzip() func(http.Handler) http.Handler {
+func Gzip(opts ...GzipOption) func(http.Handler) http.Handler {
+	cfg := &gzipConfig{
+		excludePaths: make(map[string]bool),
+	}
+
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Skip compression for excluded paths
+			if cfg.excludePaths[r.URL.Path] {
+				next.ServeHTTP(w, r)
+
+				return
+			}
+
 			// Check if client accepts gzip encoding
 			if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 				next.ServeHTTP(w, r)

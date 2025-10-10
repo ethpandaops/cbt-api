@@ -218,3 +218,68 @@ func TestGzip_PreexistingContentEncoding(t *testing.T) {
 	// Should respect pre-existing Content-Encoding
 	assert.Equal(t, "br", rec.Header().Get("Content-Encoding"))
 }
+
+func TestGzip_WithExcludePaths(t *testing.T) {
+	tests := []struct {
+		name             string
+		excludePaths     []string
+		requestPath      string
+		expectCompressed bool
+	}{
+		{
+			name:             "excludes single path",
+			excludePaths:     []string{"/metrics"},
+			requestPath:      "/metrics",
+			expectCompressed: false,
+		},
+		{
+			name:             "compresses non-excluded path",
+			excludePaths:     []string{"/metrics"},
+			requestPath:      "/api/data",
+			expectCompressed: true,
+		},
+		{
+			name:             "excludes multiple paths",
+			excludePaths:     []string{"/metrics", "/health"},
+			requestPath:      "/health",
+			expectCompressed: false,
+		},
+		{
+			name:             "no exclusions compresses all",
+			excludePaths:     []string{},
+			requestPath:      "/metrics",
+			expectCompressed: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create test handler with excluded paths
+			handler := Gzip(WithExcludePaths(tt.excludePaths...))(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(strings.Repeat("test data ", 100)))
+				require.NoError(t, err)
+			}))
+
+			// Create request with gzip support
+			req := httptest.NewRequest(http.MethodGet, tt.requestPath, nil)
+			req.Header.Set("Accept-Encoding", "gzip")
+
+			// Record response
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			// Check status code
+			assert.Equal(t, http.StatusOK, rec.Code)
+
+			// Check if compressed based on expectation
+			if tt.expectCompressed {
+				assert.Equal(t, "gzip", rec.Header().Get("Content-Encoding"),
+					"expected path %s to be compressed", tt.requestPath)
+			} else {
+				assert.Empty(t, rec.Header().Get("Content-Encoding"),
+					"expected path %s to not be compressed", tt.requestPath)
+			}
+		})
+	}
+}
