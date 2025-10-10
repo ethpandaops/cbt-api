@@ -109,7 +109,7 @@ func TestCodeGenerator_generateFieldMapping(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g := &CodeGenerator{}
-			got := g.generateFieldMapping(tt.fieldName, tt.nullable)
+			got := g.generateFieldMapping(tt.fieldName, "string", tt.nullable)
 
 			for _, expected := range tt.expected {
 				assert.Contains(t, got, expected)

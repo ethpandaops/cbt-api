@@ -897,7 +897,9 @@ func TestApplyTransformations(t *testing.T) {
 		"count": "Int64Value",
 	}
 
-	stats := applyTransformations(doc, descriptions, fieldTypes)
+	annotations := ProtoFieldAnnotations{}
+
+	stats := applyTransformations(doc, descriptions, fieldTypes, annotations)
 
 	// Verify stats
 	assert.Equal(t, 1, stats.FiltersFlatted, "expected 1 parameter to be flattened")

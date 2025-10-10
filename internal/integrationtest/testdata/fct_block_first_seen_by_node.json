@@ -1,0 +1,168 @@
+{
+	"meta":
+	[
+		{
+			"name": "updated_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "source",
+			"type": "LowCardinality(String)"
+		},
+		{
+			"name": "slot",
+			"type": "UInt32"
+		},
+		{
+			"name": "slot_start_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "epoch",
+			"type": "UInt32"
+		},
+		{
+			"name": "epoch_start_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "seen_slot_start_diff",
+			"type": "UInt32"
+		},
+		{
+			"name": "block_root",
+			"type": "String"
+		},
+		{
+			"name": "username",
+			"type": "LowCardinality(String)"
+		},
+		{
+			"name": "node_id",
+			"type": "String"
+		},
+		{
+			"name": "classification",
+			"type": "LowCardinality(String)"
+		},
+		{
+			"name": "meta_client_name",
+			"type": "LowCardinality(String)"
+		},
+		{
+			"name": "meta_client_version",
+			"type": "LowCardinality(String)"
+		},
+		{
+			"name": "meta_client_implementation",
+			"type": "LowCardinality(String)"
+		},
+		{
+			"name": "meta_client_geo_city",
+			"type": "LowCardinality(String)"
+		},
+		{
+			"name": "meta_client_geo_country",
+			"type": "LowCardinality(String)"
+		},
+		{
+			"name": "meta_client_geo_country_code",
+			"type": "LowCardinality(String)"
+		},
+		{
+			"name": "meta_client_geo_continent_code",
+			"type": "LowCardinality(String)"
+		},
+		{
+			"name": "meta_client_geo_longitude",
+			"type": "Nullable(Float64)"
+		},
+		{
+			"name": "meta_client_geo_latitude",
+			"type": "Nullable(Float64)"
+		},
+		{
+			"name": "meta_client_geo_autonomous_system_number",
+			"type": "Nullable(UInt32)"
+		},
+		{
+			"name": "meta_client_geo_autonomous_system_organization",
+			"type": "Nullable(String)"
+		},
+		{
+			"name": "meta_consensus_version",
+			"type": "LowCardinality(String)"
+		},
+		{
+			"name": "meta_consensus_implementation",
+			"type": "LowCardinality(String)"
+		}
+	],
+
+	"data":
+	[
+		{
+			"updated_date_time": "2025-10-02 03:27:31",
+			"source": "libp2p_gossipsub_beacon_block",
+			"slot": 1,
+			"slot_start_date_time": "2020-12-01 12:00:35",
+			"epoch": 0,
+			"epoch_start_date_time": "2020-12-01 12:00:23",
+			"seen_slot_start_diff": 1457117876,
+			"block_root": "0x93d14c5397661fcb3b50b654d75359895f35e71add93089371fbd5eca16f3827",
+			"username": "ethpandaops",
+			"node_id": "xatu-cl-mimicry-blr1-mainnet-005",
+			"classification": "internal",
+			"meta_client_name": "ethpandaops\/mainnet\/xatu-cl-mimicry-blr1-mainnet-005",
+			"meta_client_version": "v1.0.49-a60c580",
+			"meta_client_implementation": "Xatu",
+			"meta_client_geo_city": "Bengaluru",
+			"meta_client_geo_country": "India",
+			"meta_client_geo_country_code": "IN",
+			"meta_client_geo_continent_code": "AS",
+			"meta_client_geo_longitude": 77.591,
+			"meta_client_geo_latitude": 12.9753,
+			"meta_client_geo_autonomous_system_number": 14061,
+			"meta_client_geo_autonomous_system_organization": "DIGITALOCEAN-ASN",
+			"meta_consensus_version": "",
+			"meta_consensus_implementation": ""
+		},
+		{
+			"updated_date_time": "2025-10-02 03:27:31",
+			"source": "libp2p_gossipsub_beacon_block",
+			"slot": 1,
+			"slot_start_date_time": "2020-12-01 12:00:35",
+			"epoch": 0,
+			"epoch_start_date_time": "2020-12-01 12:00:23",
+			"seen_slot_start_diff": 1457117969,
+			"block_root": "0x93d14c5397661fcb3b50b654d75359895f35e71add93089371fbd5eca16f3827",
+			"username": "ethpandaops",
+			"node_id": "xatu-cl-mimicry-sfo3-mainnet-001",
+			"classification": "internal",
+			"meta_client_name": "ethpandaops\/mainnet\/xatu-cl-mimicry-sfo3-mainnet-001",
+			"meta_client_version": "v1.0.49-a60c580",
+			"meta_client_implementation": "Xatu",
+			"meta_client_geo_city": "Santa Clara",
+			"meta_client_geo_country": "United States",
+			"meta_client_geo_country_code": "US",
+			"meta_client_geo_continent_code": "NA",
+			"meta_client_geo_longitude": -121.962,
+			"meta_client_geo_latitude": 37.3931,
+			"meta_client_geo_autonomous_system_number": 14061,
+			"meta_client_geo_autonomous_system_organization": "DIGITALOCEAN-ASN",
+			"meta_consensus_version": "",
+			"meta_consensus_implementation": ""
+		}
+	],
+
+	"rows": 2,
+
+	"rows_before_limit_at_least": 2913,
+
+	"statistics":
+	{
+		"elapsed": 2.047658229,
+		"rows_read": 430137,
+		"bytes_read": 86841509
+	}
+}

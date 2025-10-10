@@ -1,0 +1,60 @@
+{
+	"meta":
+	[
+		{
+			"name": "updated_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "slot",
+			"type": "UInt32"
+		},
+		{
+			"name": "slot_start_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "epoch",
+			"type": "UInt32"
+		},
+		{
+			"name": "epoch_start_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "entity",
+			"type": "Nullable(String)"
+		}
+	],
+
+	"data":
+	[
+		{
+			"updated_date_time": "2025-10-09 22:15:27",
+			"slot": 12297550,
+			"slot_start_date_time": "2025-08-05 11:50:23",
+			"epoch": 384298,
+			"epoch_start_date_time": "2025-08-05 11:47:35",
+			"entity": "binance"
+		},
+		{
+			"updated_date_time": "2025-10-09 22:15:27",
+			"slot": 12297551,
+			"slot_start_date_time": "2025-08-05 11:50:35",
+			"epoch": 384298,
+			"epoch_start_date_time": "2025-08-05 11:47:35",
+			"entity": "binance"
+		}
+	],
+
+	"rows": 2,
+
+	"rows_before_limit_at_least": 8213,
+
+	"statistics":
+	{
+		"elapsed": 0.026933725,
+		"rows_read": 142765,
+		"bytes_read": 5699625
+	}
+}

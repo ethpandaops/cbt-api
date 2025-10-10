@@ -1,0 +1,48 @@
+{
+	"meta":
+	[
+		{
+			"name": "updated_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "rank",
+			"type": "UInt32"
+		},
+		{
+			"name": "contract_address",
+			"type": "String"
+		},
+		{
+			"name": "expired_slots",
+			"type": "UInt64"
+		}
+	],
+
+	"data":
+	[
+		{
+			"updated_date_time": "2025-10-09 05:14:27",
+			"rank": 3,
+			"contract_address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+			"expired_slots": "33786167"
+		},
+		{
+			"updated_date_time": "2025-10-09 05:14:27",
+			"rank": 4,
+			"contract_address": "0x7be8076f4ea4a4ad08075c2508e481d6c946d12b",
+			"expired_slots": "31579398"
+		}
+	],
+
+	"rows": 2,
+
+	"rows_before_limit_at_least": 122,
+
+	"statistics":
+	{
+		"elapsed": 0.025260089,
+		"rows_read": 122,
+		"bytes_read": 8174
+	}
+}

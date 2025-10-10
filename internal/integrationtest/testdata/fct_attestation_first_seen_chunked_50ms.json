@@ -1,0 +1,72 @@
+{
+	"meta":
+	[
+		{
+			"name": "updated_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "slot",
+			"type": "UInt32"
+		},
+		{
+			"name": "slot_start_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "epoch",
+			"type": "UInt32"
+		},
+		{
+			"name": "epoch_start_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "block_root",
+			"type": "String"
+		},
+		{
+			"name": "chunk_slot_start_diff",
+			"type": "UInt32"
+		},
+		{
+			"name": "attestation_count",
+			"type": "UInt32"
+		}
+	],
+
+	"data":
+	[
+		{
+			"updated_date_time": "2025-09-26 06:17:19",
+			"slot": 12670156,
+			"slot_start_date_time": "2025-09-26 05:51:35",
+			"epoch": 395942,
+			"epoch_start_date_time": "2025-09-26 05:49:11",
+			"block_root": "0x7a64631768835440f868701100667ab85256a5136cfa8b5cdfc28c21fb1cc824",
+			"chunk_slot_start_diff": 0,
+			"attestation_count": 5
+		},
+		{
+			"updated_date_time": "2025-09-26 06:17:19",
+			"slot": 12670156,
+			"slot_start_date_time": "2025-09-26 05:51:35",
+			"epoch": 395942,
+			"epoch_start_date_time": "2025-09-26 05:49:11",
+			"block_root": "0x7a64631768835440f868701100667ab85256a5136cfa8b5cdfc28c21fb1cc824",
+			"chunk_slot_start_diff": 4400,
+			"attestation_count": 1
+		}
+	],
+
+	"rows": 2,
+
+	"rows_before_limit_at_least": 6,
+
+	"statistics":
+	{
+		"elapsed": 0.050787256,
+		"rows_read": 34442,
+		"bytes_read": 3547526
+	}
+}

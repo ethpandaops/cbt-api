@@ -1,0 +1,156 @@
+{
+	"meta":
+	[
+		{
+			"name": "updated_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "slot",
+			"type": "UInt32"
+		},
+		{
+			"name": "slot_start_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "event_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "meta_client_name",
+			"type": "String"
+		},
+		{
+			"name": "meta_client_version",
+			"type": "String"
+		},
+		{
+			"name": "meta_client_implementation",
+			"type": "String"
+		},
+		{
+			"name": "meta_consensus_implementation",
+			"type": "String"
+		},
+		{
+			"name": "meta_consensus_version",
+			"type": "String"
+		},
+		{
+			"name": "meta_client_geo_city",
+			"type": "String"
+		},
+		{
+			"name": "meta_client_geo_country",
+			"type": "String"
+		},
+		{
+			"name": "meta_client_geo_country_code",
+			"type": "String"
+		},
+		{
+			"name": "block_version",
+			"type": "LowCardinality(String)"
+		},
+		{
+			"name": "block_total_bytes",
+			"type": "Nullable(UInt32)"
+		},
+		{
+			"name": "block_total_bytes_compressed",
+			"type": "Nullable(UInt32)"
+		},
+		{
+			"name": "execution_payload_value",
+			"type": "Nullable(UInt64)"
+		},
+		{
+			"name": "consensus_payload_value",
+			"type": "Nullable(UInt64)"
+		},
+		{
+			"name": "execution_payload_block_number",
+			"type": "UInt32"
+		},
+		{
+			"name": "execution_payload_gas_limit",
+			"type": "Nullable(UInt64)"
+		},
+		{
+			"name": "execution_payload_gas_used",
+			"type": "Nullable(UInt64)"
+		},
+		{
+			"name": "execution_payload_transactions_count",
+			"type": "Nullable(UInt32)"
+		},
+		{
+			"name": "execution_payload_transactions_total_bytes",
+			"type": "Nullable(UInt32)"
+		}
+	],
+
+	"data":
+	[
+		{
+			"updated_date_time": "2025-10-01 02:21:32",
+			"slot": 12704399,
+			"slot_start_date_time": "2025-10-01 00:00:11",
+			"event_date_time": "2025-10-01 00:00:11",
+			"meta_client_name": "ethpandaops\/mainnet\/latitude-ash-mainnet-lighthouse-besu-001",
+			"meta_client_version": "v1.4.12-c80a5a5",
+			"meta_client_implementation": "Xatu",
+			"meta_consensus_implementation": "lighthouse",
+			"meta_consensus_version": "v7.0.1-e42406d",
+			"meta_client_geo_city": "Ashburn",
+			"meta_client_geo_country": "United States",
+			"meta_client_geo_country_code": "US",
+			"block_version": "electra",
+			"block_total_bytes": 28739,
+			"block_total_bytes_compressed": 13959,
+			"execution_payload_value": "0",
+			"consensus_payload_value": "45232690000000000",
+			"execution_payload_block_number": 23479244,
+			"execution_payload_gas_limit": "45000000",
+			"execution_payload_gas_used": "0",
+			"execution_payload_transactions_count": 0,
+			"execution_payload_transactions_total_bytes": 0
+		},
+		{
+			"updated_date_time": "2025-10-01 02:21:32",
+			"slot": 12704399,
+			"slot_start_date_time": "2025-10-01 00:00:11",
+			"event_date_time": "2025-10-01 00:00:11",
+			"meta_client_name": "ethpandaops\/mainnet\/latitude-ash-mainnet-lodestar-nethermind-001",
+			"meta_client_version": "v1.4.12-c80a5a5",
+			"meta_client_implementation": "Xatu",
+			"meta_consensus_implementation": "lodestar",
+			"meta_consensus_version": "v1.32.0",
+			"meta_client_geo_city": "Ashburn",
+			"meta_client_geo_country": "United States",
+			"meta_client_geo_country_code": "US",
+			"block_version": "electra",
+			"block_total_bytes": 61692,
+			"block_total_bytes_compressed": 37090,
+			"execution_payload_value": "7271938270334035",
+			"consensus_payload_value": "44367046000000000",
+			"execution_payload_block_number": 23479244,
+			"execution_payload_gas_limit": "45000000",
+			"execution_payload_gas_used": "14570640",
+			"execution_payload_transactions_count": 214,
+			"execution_payload_transactions_total_bytes": 51247
+		}
+	],
+
+	"rows": 2,
+
+	"rows_before_limit_at_least": 4,
+
+	"statistics":
+	{
+		"elapsed": 0.297359519,
+		"rows_read": 159296,
+		"bytes_read": 41510806
+	}
+}

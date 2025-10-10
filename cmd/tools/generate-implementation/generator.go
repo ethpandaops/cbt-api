@@ -198,7 +198,7 @@ func protoToOpenAPI%s(p *clickhouse.%s) handlers.%s {
 	// Generate field mappings
 	for _, field := range schema.Fields {
 		fieldName := toPascalCase(field.Name)
-		sb.WriteString(g.generateFieldMapping(fieldName, field.Nullable))
+		sb.WriteString(g.generateFieldMapping(fieldName, field.Type, field.Nullable))
 	}
 
 	sb.WriteString(`	return result
@@ -210,7 +210,7 @@ func protoToOpenAPI%s(p *clickhouse.%s) handlers.%s {
 }
 
 // generateFieldMapping generates field mapping code for proto→OpenAPI conversion.
-func (g *CodeGenerator) generateFieldMapping(fieldName string, nullable bool) string {
+func (g *CodeGenerator) generateFieldMapping(fieldName string, fieldType string, nullable bool) string {
 	if nullable {
 		// Nullable fields use wrapperspb in proto
 		// Proto: *wrapperspb.StringValue → OpenAPI: *string (oapi-codegen uses pointers)
@@ -219,6 +219,13 @@ func (g *CodeGenerator) generateFieldMapping(fieldName string, nullable bool) st
 		result.%s = &val
 	}
 `, fieldName, fieldName, fieldName)
+	}
+
+	// Check if field is a slice - slices are assigned directly (no &)
+	// Proto: []string → OpenAPI: []string (after fixArrayPointers)
+	if fieldType == "array" {
+		return fmt.Sprintf(`	result.%s = p.%s
+`, fieldName, fieldName)
 	}
 
 	// Non-nullable fields need address taken

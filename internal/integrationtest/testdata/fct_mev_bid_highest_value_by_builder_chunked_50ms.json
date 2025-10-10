@@ -1,0 +1,98 @@
+{
+	"meta":
+	[
+		{
+			"name": "updated_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "slot",
+			"type": "UInt32"
+		},
+		{
+			"name": "slot_start_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "epoch",
+			"type": "UInt32"
+		},
+		{
+			"name": "epoch_start_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "chunk_slot_start_diff",
+			"type": "Int32"
+		},
+		{
+			"name": "earliest_bid_date_time",
+			"type": "DateTime64(3)"
+		},
+		{
+			"name": "relay_names",
+			"type": "Array(String)"
+		},
+		{
+			"name": "block_hash",
+			"type": "FixedString(66)"
+		},
+		{
+			"name": "builder_pubkey",
+			"type": "String"
+		},
+		{
+			"name": "value",
+			"type": "UInt128"
+		}
+	],
+
+	"data":
+	[
+		{
+			"updated_date_time": "2025-10-01 02:01:32",
+			"slot": 12447884,
+			"slot_start_date_time": "2025-08-26 08:57:11",
+			"epoch": 388996,
+			"epoch_start_date_time": "2025-08-26 08:54:47",
+			"chunk_slot_start_diff": -9250,
+			"earliest_bid_date_time": "2025-08-26 08:57:01.762",
+			"relay_names": [
+				"Flashbots",
+				"Agnostic Gnosis",
+				"Aestus"
+			],
+			"block_hash": "0x466e4bc2053103ca2c22bcd27813ff56bcc307039027b50816253ec936276459",
+			"builder_pubkey": "0x88cd924ca0bc4ab6fe838f323d79a932d13ae25239d8960c6246a5250ef85a8ab8ba96a8b6d8b207fe8a6e70f7d2c512",
+			"value": "4538940252060"
+		},
+		{
+			"updated_date_time": "2025-10-01 02:01:32",
+			"slot": 12447884,
+			"slot_start_date_time": "2025-08-26 08:57:11",
+			"epoch": 388996,
+			"epoch_start_date_time": "2025-08-26 08:54:47",
+			"chunk_slot_start_diff": -8700,
+			"earliest_bid_date_time": "2025-08-26 08:57:02.336",
+			"relay_names": [
+				"Flashbots",
+				"Agnostic Gnosis",
+				"Aestus"
+			],
+			"block_hash": "0x4c33f5e7a7357191f4cb792f46d4d0b1552ea0d38875369fed735276829a7a6c",
+			"builder_pubkey": "0x88cd924ca0bc4ab6fe838f323d79a932d13ae25239d8960c6246a5250ef85a8ab8ba96a8b6d8b207fe8a6e70f7d2c512",
+			"value": "104542951768275"
+		}
+	],
+
+	"rows": 2,
+
+	"rows_before_limit_at_least": 4,
+
+	"statistics":
+	{
+		"elapsed": 0.460102854,
+		"rows_read": 127273,
+		"bytes_read": 34873618
+	}
+}

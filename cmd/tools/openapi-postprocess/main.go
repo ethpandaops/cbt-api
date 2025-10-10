@@ -36,6 +36,9 @@ func main() {
 	// Add ch tags to json tags.
 	processed := addChTags(string(content))
 
+	// Fix array pointers (*[]T -> []T) for ClickHouse compatibility
+	processed = fixArrayPointers(processed)
+
 	if err := os.WriteFile(*output, []byte(processed), 0600); err != nil {
 		fmt.Printf("Error writing file: %v\n", err)
 		os.Exit(1)
@@ -68,4 +71,14 @@ func addChTags(content string) string {
 	})
 
 	return result
+}
+
+// fixArrayPointers removes pointer indirection from array/slice types for ClickHouse compatibility.
+// ClickHouse driver cannot scan Array columns into pointer-to-slice (*[]T), only into slices ([]T).
+func fixArrayPointers(content string) string {
+	// Match: *[]Type (pointer to slice)
+	// Replace with: []Type (slice)
+	re := regexp.MustCompile(`\*\[\]([a-zA-Z0-9_]+)`)
+
+	return re.ReplaceAllString(content, "[]$1")
 }

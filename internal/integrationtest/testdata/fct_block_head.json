@@ -1,0 +1,186 @@
+{
+	"meta":
+	[
+		{
+			"name": "updated_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "slot",
+			"type": "UInt32"
+		},
+		{
+			"name": "slot_start_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "epoch",
+			"type": "UInt32"
+		},
+		{
+			"name": "epoch_start_date_time",
+			"type": "DateTime"
+		},
+		{
+			"name": "block_root",
+			"type": "FixedString(66)"
+		},
+		{
+			"name": "block_version",
+			"type": "LowCardinality(String)"
+		},
+		{
+			"name": "block_total_bytes",
+			"type": "Nullable(UInt32)"
+		},
+		{
+			"name": "block_total_bytes_compressed",
+			"type": "Nullable(UInt32)"
+		},
+		{
+			"name": "parent_root",
+			"type": "FixedString(66)"
+		},
+		{
+			"name": "state_root",
+			"type": "FixedString(66)"
+		},
+		{
+			"name": "proposer_index",
+			"type": "UInt32"
+		},
+		{
+			"name": "eth1_data_block_hash",
+			"type": "FixedString(66)"
+		},
+		{
+			"name": "eth1_data_deposit_root",
+			"type": "FixedString(66)"
+		},
+		{
+			"name": "execution_payload_block_hash",
+			"type": "FixedString(66)"
+		},
+		{
+			"name": "execution_payload_block_number",
+			"type": "UInt32"
+		},
+		{
+			"name": "execution_payload_fee_recipient",
+			"type": "String"
+		},
+		{
+			"name": "execution_payload_base_fee_per_gas",
+			"type": "Nullable(UInt128)"
+		},
+		{
+			"name": "execution_payload_blob_gas_used",
+			"type": "Nullable(UInt64)"
+		},
+		{
+			"name": "execution_payload_excess_blob_gas",
+			"type": "Nullable(UInt64)"
+		},
+		{
+			"name": "execution_payload_gas_limit",
+			"type": "Nullable(UInt64)"
+		},
+		{
+			"name": "execution_payload_gas_used",
+			"type": "Nullable(UInt64)"
+		},
+		{
+			"name": "execution_payload_state_root",
+			"type": "FixedString(66)"
+		},
+		{
+			"name": "execution_payload_parent_hash",
+			"type": "FixedString(66)"
+		},
+		{
+			"name": "execution_payload_transactions_count",
+			"type": "Nullable(UInt32)"
+		},
+		{
+			"name": "execution_payload_transactions_total_bytes",
+			"type": "Nullable(UInt32)"
+		},
+		{
+			"name": "execution_payload_transactions_total_bytes_compressed",
+			"type": "Nullable(UInt32)"
+		}
+	],
+
+	"data":
+	[
+		{
+			"updated_date_time": "2025-10-02 00:50:02",
+			"slot": 1306801,
+			"slot_start_date_time": "2021-06-01 00:00:35",
+			"epoch": 40837,
+			"epoch_start_date_time": "2021-05-31 23:57:11",
+			"block_root": "0x29b1a3f993242630a0fdc298474a7a73e8e2d34841c04f357e8d635aeda55a8f",
+			"block_version": "phase0",
+			"block_total_bytes": 53561,
+			"block_total_bytes_compressed": 22955,
+			"parent_root": "0x14b0b7d061dfafe6e59e8300c33f9ea71b944408b927ab8b80ad2efcfca8dad0",
+			"state_root": "0x4b9f5bdd95ff26fe662ff4a28b8b6432b83c1ebb1294051c536652588efb88ee",
+			"proposer_index": 148562,
+			"eth1_data_block_hash": "0xe816534f31e85d2af989171921807e8d343096d174016dc017e620e3f06d33d0",
+			"eth1_data_deposit_root": "0x7c4feb2f3b6fb2699005dbeca64861dcd229bc1eb6606fe583d77a9dfd3fc06d",
+			"execution_payload_block_hash": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+			"execution_payload_block_number": 0,
+			"execution_payload_fee_recipient": "",
+			"execution_payload_base_fee_per_gas": null,
+			"execution_payload_blob_gas_used": null,
+			"execution_payload_excess_blob_gas": null,
+			"execution_payload_gas_limit": null,
+			"execution_payload_gas_used": null,
+			"execution_payload_state_root": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+			"execution_payload_parent_hash": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+			"execution_payload_transactions_count": 0,
+			"execution_payload_transactions_total_bytes": 0,
+			"execution_payload_transactions_total_bytes_compressed": 1
+		},
+		{
+			"updated_date_time": "2025-10-02 00:50:02",
+			"slot": 1306802,
+			"slot_start_date_time": "2021-06-01 00:00:47",
+			"epoch": 40837,
+			"epoch_start_date_time": "2021-05-31 23:57:11",
+			"block_root": "0x54b9ec53dfa6f7004137207aace27b26821baf2b709399ac064139c77535ca22",
+			"block_version": "phase0",
+			"block_total_bytes": 31865,
+			"block_total_bytes_compressed": 12894,
+			"parent_root": "0x29b1a3f993242630a0fdc298474a7a73e8e2d34841c04f357e8d635aeda55a8f",
+			"state_root": "0x15a8723efdf32725ee0189c6a7f04615d0cb9233f766e93f3c9fcaf5e8745434",
+			"proposer_index": 37913,
+			"eth1_data_block_hash": "0xe816534f31e85d2af989171921807e8d343096d174016dc017e620e3f06d33d0",
+			"eth1_data_deposit_root": "0x7c4feb2f3b6fb2699005dbeca64861dcd229bc1eb6606fe583d77a9dfd3fc06d",
+			"execution_payload_block_hash": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+			"execution_payload_block_number": 0,
+			"execution_payload_fee_recipient": "",
+			"execution_payload_base_fee_per_gas": null,
+			"execution_payload_blob_gas_used": null,
+			"execution_payload_excess_blob_gas": null,
+			"execution_payload_gas_limit": null,
+			"execution_payload_gas_used": null,
+			"execution_payload_state_root": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+			"execution_payload_parent_hash": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+			"execution_payload_transactions_count": 0,
+			"execution_payload_transactions_total_bytes": 0,
+			"execution_payload_transactions_total_bytes_compressed": 1
+		}
+	],
+
+	"rows": 2,
+
+	"rows_before_limit_at_least": 2,
+
+	"statistics":
+	{
+		"elapsed": 3.967667282,
+		"rows_read": 1011007,
+		"bytes_read": 636048381
+	}
+}
