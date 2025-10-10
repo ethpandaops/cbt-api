@@ -49,7 +49,7 @@ func NewClient(cfg *config.ClickHouseConfig, logger logrus.FieldLogger) (*Client
 		"module": "clickhouse",
 	})
 
-	log.Debug("Initializing ClickHouse client")
+	log.Debug("Initialising ClickHouse client")
 
 	// Parse and process DSN
 	parsedDSN, err := parseDSN(cfg.DSN)

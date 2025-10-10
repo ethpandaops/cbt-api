@@ -1,8 +1,11 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	apierrors "github.com/ethpandaops/xatu-cbt-api/internal/errors"
@@ -12,7 +15,10 @@ import (
 )
 
 // QueryParameterValidation returns a middleware that validates query parameters
-// against the OpenAPI specification, returning 400 Bad Request for unknown parameters.
+// against the OpenAPI specification, returning 400 Bad Request for:
+// - Unknown parameters
+// - Invalid parameter types (e.g., non-numeric value for uint32)
+// - Invalid parameter formats (e.g., pattern violations)
 //
 // Note: This middleware validates only query parameters, not routes/paths.
 // Route validation is handled by the http.ServeMux itself (Go 1.22+).
@@ -26,11 +32,9 @@ func QueryParameterValidation(logger logrus.FieldLogger) func(http.Handler) http
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Try to find the OpenAPI operation by matching path patterns
-			// This is a simple best-effort match without pulling in a full router
 			var operation *openapi3.Operation
 
 			for path, pathItem := range swagger.Paths.Map() {
-				// Simple pattern matching - this won't handle all cases but covers our use
 				if matchesPattern(r.URL.Path, path) {
 					switch r.Method {
 					case http.MethodGet:
@@ -58,12 +62,14 @@ func QueryParameterValidation(logger logrus.FieldLogger) func(http.Handler) http
 				return
 			}
 
-			// Build set of valid query parameter names
+			// Build map of parameter definitions for validation
+			paramDefs := make(map[string]*openapi3.Parameter)
 			validParams := make(map[string]bool)
 
-			for _, param := range operation.Parameters {
-				if param.Value != nil && param.Value.In == openapi3.ParameterInQuery {
-					validParams[param.Value.Name] = true
+			for _, paramRef := range operation.Parameters {
+				if paramRef.Value != nil && paramRef.Value.In == openapi3.ParameterInQuery {
+					paramDefs[paramRef.Value.Name] = paramRef.Value
+					validParams[paramRef.Value.Name] = true
 				}
 			}
 
@@ -77,10 +83,8 @@ func QueryParameterValidation(logger logrus.FieldLogger) func(http.Handler) http
 			}
 
 			if len(unknownParams) > 0 {
-				// Sort for consistent error messages
 				sort.Strings(unknownParams)
 
-				// Build list of valid parameters for error details
 				validParamList := make([]string, 0, len(validParams))
 				for param := range validParams {
 					validParamList = append(validParamList, param)
@@ -88,7 +92,6 @@ func QueryParameterValidation(logger logrus.FieldLogger) func(http.Handler) http
 
 				sort.Strings(validParamList)
 
-				// Create Status error with metadata
 				status := apierrors.BadRequestf(
 					"unknown query parameter(s): %s",
 					strings.Join(unknownParams, ", "),
@@ -102,9 +105,191 @@ func QueryParameterValidation(logger logrus.FieldLogger) func(http.Handler) http
 				return
 			}
 
+			// Validate parameter types and formats
+			for paramName, paramDef := range paramDefs {
+				values := r.URL.Query()[paramName]
+				if len(values) == 0 {
+					continue // Parameter not provided, skip validation
+				}
+
+				// Validate each value
+				for _, value := range values {
+					if err := validateParameterValue(paramName, value, paramDef); err != nil {
+						logger.WithFields(logrus.Fields{
+							"param": paramName,
+							"value": value,
+							"path":  r.URL.Path,
+						}).Warn("parameter validation failed")
+
+						status := apierrors.BadRequest(err.Error())
+						status.WriteJSON(w)
+
+						return
+					}
+				}
+			}
+
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// validateParameterValue validates a single parameter value against its OpenAPI schema.
+func validateParameterValue(paramName, value string, param *openapi3.Parameter) error {
+	if param.Schema == nil || param.Schema.Value == nil {
+		return nil // No schema to validate against
+	}
+
+	schema := param.Schema.Value
+
+	// Get the parameter type
+	if schema.Type == nil || len(schema.Type.Slice()) == 0 {
+		return nil // No type specified
+	}
+
+	paramType := schema.Type.Slice()[0]
+	format := schema.Format
+
+	// Validate based on type
+	switch paramType {
+	case "integer":
+		return validateIntegerParameter(paramName, value, format, schema)
+	case "number":
+		return validateNumberParameter(paramName, value, schema)
+	case "string":
+		return validateStringParameter(paramName, value, schema)
+	case "boolean":
+		return validateBooleanParameter(paramName, value)
+	}
+
+	return nil
+}
+
+// validateIntegerParameter validates integer parameters (uint32, uint64, int32, int64).
+func validateIntegerParameter(paramName, value, format string, schema *openapi3.Schema) error {
+	switch format {
+	case "uint32":
+		val, err := strconv.ParseUint(value, 10, 32)
+		if err != nil {
+			return fmt.Errorf("parameter '%s' must be a valid unsigned 32-bit integer", paramName)
+		}
+
+		// Check minimum if specified
+		if schema.Min != nil && float64(val) < *schema.Min {
+			return fmt.Errorf("parameter '%s' must be >= %v", paramName, *schema.Min)
+		}
+
+		// Check maximum if specified
+		if schema.Max != nil && float64(val) > *schema.Max {
+			return fmt.Errorf("parameter '%s' must be <= %v", paramName, *schema.Max)
+		}
+
+	case "uint64":
+		val, err := strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("parameter '%s' must be a valid unsigned 64-bit integer", paramName)
+		}
+
+		if schema.Min != nil && float64(val) < *schema.Min {
+			return fmt.Errorf("parameter '%s' must be >= %v", paramName, *schema.Min)
+		}
+
+		if schema.Max != nil && float64(val) > *schema.Max {
+			return fmt.Errorf("parameter '%s' must be <= %v", paramName, *schema.Max)
+		}
+
+	case "int32":
+		val, err := strconv.ParseInt(value, 10, 32)
+		if err != nil {
+			return fmt.Errorf("parameter '%s' must be a valid signed 32-bit integer", paramName)
+		}
+
+		if schema.Min != nil && float64(val) < *schema.Min {
+			return fmt.Errorf("parameter '%s' must be >= %v", paramName, *schema.Min)
+		}
+
+		if schema.Max != nil && float64(val) > *schema.Max {
+			return fmt.Errorf("parameter '%s' must be <= %v", paramName, *schema.Max)
+		}
+
+	case "int64":
+		val, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("parameter '%s' must be a valid signed 64-bit integer", paramName)
+		}
+
+		if schema.Min != nil && float64(val) < *schema.Min {
+			return fmt.Errorf("parameter '%s' must be >= %v", paramName, *schema.Min)
+		}
+
+		if schema.Max != nil && float64(val) > *schema.Max {
+			return fmt.Errorf("parameter '%s' must be <= %v", paramName, *schema.Max)
+		}
+
+	default:
+		// Generic integer validation
+		_, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("parameter '%s' must be a valid integer", paramName)
+		}
+	}
+
+	return nil
+}
+
+// validateNumberParameter validates number parameters (float, double).
+func validateNumberParameter(paramName, value string, schema *openapi3.Schema) error {
+	val, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return fmt.Errorf("parameter '%s' must be a valid number", paramName)
+	}
+
+	if schema.Min != nil && val < *schema.Min {
+		return fmt.Errorf("parameter '%s' must be >= %v", paramName, *schema.Min)
+	}
+
+	if schema.Max != nil && val > *schema.Max {
+		return fmt.Errorf("parameter '%s' must be <= %v", paramName, *schema.Max)
+	}
+
+	return nil
+}
+
+// validateStringParameter validates string parameters with pattern, minLength, maxLength.
+func validateStringParameter(paramName, value string, schema *openapi3.Schema) error {
+	// Check pattern if specified
+	if schema.Pattern != "" {
+		matched, err := regexp.MatchString(schema.Pattern, value)
+		if err != nil {
+			return fmt.Errorf("parameter '%s' has invalid pattern in schema", paramName)
+		}
+
+		if !matched {
+			return fmt.Errorf("parameter '%s' has invalid format", paramName)
+		}
+	}
+
+	// Check minLength if specified
+	if schema.MinLength > 0 && uint64(len(value)) < schema.MinLength {
+		return fmt.Errorf("parameter '%s' must be at least %d characters", paramName, schema.MinLength)
+	}
+
+	// Check maxLength if specified
+	if schema.MaxLength != nil && uint64(len(value)) > *schema.MaxLength {
+		return fmt.Errorf("parameter '%s' must be at most %d characters", paramName, *schema.MaxLength)
+	}
+
+	return nil
+}
+
+// validateBooleanParameter validates boolean parameters.
+func validateBooleanParameter(paramName, value string) error {
+	_, err := strconv.ParseBool(value)
+	if err != nil {
+		return fmt.Errorf("parameter '%s' must be a valid boolean (true or false)", paramName)
+	}
+
+	return nil
 }
 
 // matchesPattern checks if a request path matches an OpenAPI path pattern.
