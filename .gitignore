@@ -59,3 +59,4 @@ Thumbs.db
 *.bak
 *.backup
 .descriptors.pb
+.goreleaser.yaml.new
