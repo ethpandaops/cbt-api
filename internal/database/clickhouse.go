@@ -40,7 +40,7 @@ type Client struct {
 	config *config.ClickHouseConfig
 }
 
-// Ensure Client implements DatabaseClient interface
+// Ensure Client implements DatabaseClient interface.
 var _ DatabaseClient = (*Client)(nil)
 
 // NewClient creates a new ClickHouse client using the official Go driver.

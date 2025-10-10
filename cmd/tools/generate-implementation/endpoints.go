@@ -46,6 +46,16 @@ func generateListEndpoint(ep Endpoint, protoInfo *ProtoInfo) string {
 // %s %s
 func (s *Server) %s(w http.ResponseWriter, r *http.Request, params handlers.%s) {
 	ctx := r.Context()
+	tracer := otel.Tracer("xatu-cbt-api/handlers")
+
+	// Create span for handler execution
+	ctx, span := tracer.Start(ctx, "handler.%s",
+		trace.WithAttributes(
+			attribute.String("handler.name", "%s"),
+			attribute.String("handler.operation", "List"),
+		),
+	)
+	defer span.End()
 
 	// Build proto request
 	req := &clickhouse.%s{
@@ -56,36 +66,51 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, params handlers.%s) 
 	// Pagination
 	if params.PageSize != nil {
 		req.PageSize = *params.PageSize
+		span.SetAttributes(attribute.Int("pagination.page_size", int(*params.PageSize)))
 	}
 	if params.PageToken != nil {
 		req.PageToken = *params.PageToken
+		span.SetAttributes(attribute.String("pagination.page_token", *params.PageToken))
 	}
 
 	// Use existing Query Builder
+	_, buildSpan := tracer.Start(ctx, "handler.buildQuery")
 	sqlQuery, err := clickhouse.%s(req, s.buildQueryOptions()...)
+	buildSpan.End()
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to build query")
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
 
-	// Execute query
+	// Execute query (database wrapper creates child span)
 	rows, err := s.db.Query(ctx, sqlQuery.Query, sqlQuery.Args...)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "query failed")
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 	defer rows.Close()
 
 	// Scan results directly into OpenAPI types
+	_, scanSpan := tracer.Start(ctx, "handler.scanResults")
 	var items []handlers.%s
 	for rows.Next() {
 		var item handlers.%s
 		if err := rows.ScanStruct(&item); err != nil {
+			scanSpan.RecordError(err)
+			scanSpan.End()
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "scan failed")
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
 		items = append(items, item)
 	}
+	scanSpan.SetAttributes(attribute.Int("result.count", len(items)))
+	scanSpan.End()
 
 	// Build response
 	response := handlers.%s{
@@ -98,10 +123,13 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, params handlers.%s) 
 		response.NextPageToken = &nextToken
 	}
 
+	span.SetAttributes(attribute.Int("response.item_count", len(items)))
+	span.SetStatus(codes.Ok, "")
 	writeJSON(w, response)
 }`,
 		ep.HandlerName, ep.OperationID, ep.Method, ep.Path,
 		ep.HandlerName, ep.ParamsType,
+		ep.HandlerName, ep.HandlerName,
 		requestType,
 		generateFilterAssignments(ep, protoInfo),
 		queryBuilder,
@@ -138,6 +166,17 @@ func generateGetEndpoint(ep Endpoint, protoInfo *ProtoInfo) string {
 // %s %s
 func (s *Server) %s(w http.ResponseWriter, r *http.Request, %s %s) {
 	ctx := r.Context()
+	tracer := otel.Tracer("xatu-cbt-api/handlers")
+
+	// Create span for handler execution
+	ctx, span := tracer.Start(ctx, "handler.%s",
+		trace.WithAttributes(
+			attribute.String("handler.name", "%s"),
+			attribute.String("handler.operation", "Get"),
+			attribute.String("path.parameter", "%s"),
+		),
+	)
+	defer span.End()
 
 	// Build proto request
 	req := &clickhouse.%s{
@@ -145,37 +184,55 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, %s %s) {
 	}
 
 	// Use existing Query Builder
+	_, buildSpan := tracer.Start(ctx, "handler.buildQuery")
 	sqlQuery, err := clickhouse.%s(req, s.buildQueryOptions()...)
+	buildSpan.End()
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to build query")
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
 
-	// Execute query
+	// Execute query (database wrapper creates child span)
 	rows, err := s.db.Query(ctx, sqlQuery.Query, sqlQuery.Args...)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "query failed")
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 	defer rows.Close()
 
 	// Scan single result directly into OpenAPI type
+	_, scanSpan := tracer.Start(ctx, "handler.scanResults")
 	var item handlers.%s
 	if rows.Next() {
 		if err := rows.ScanStruct(&item); err != nil {
+			scanSpan.RecordError(err)
+			scanSpan.End()
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "scan failed")
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
 	} else {
+		scanSpan.SetAttributes(attribute.Bool("result.found", false))
+		scanSpan.End()
+		span.SetStatus(codes.Ok, "not found")
 		// Not found
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
+	scanSpan.SetAttributes(attribute.Bool("result.found", true))
+	scanSpan.End()
 
+	span.SetStatus(codes.Ok, "")
 	writeJSON(w, item)
 }`,
 		ep.HandlerName, ep.OperationID, ep.Method, ep.Path,
 		ep.HandlerName, pathParamName, pathParamType,
+		ep.HandlerName, ep.HandlerName, pathParamName,
 		requestType,
 		toPascalCase(pathParamName), pathParamName,
 		queryBuilder,

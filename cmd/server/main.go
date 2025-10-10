@@ -35,8 +35,8 @@ func main() {
 	telemetryService := telemetry.NewService(&cfg.Telemetry, cfg.ClickHouse.Database, logger)
 
 	ctx := context.Background()
-	if err := telemetryService.Start(ctx); err != nil {
-		logger.WithError(err).Fatal("Failed to start telemetry")
+	if serr := telemetryService.Start(ctx); serr != nil {
+		logger.WithError(serr).Fatal("Failed to start telemetry")
 	}
 
 	// Ensure telemetry shutdown on exit
@@ -44,8 +44,8 @@ func main() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		if err := telemetryService.Stop(shutdownCtx); err != nil {
-			logger.WithError(err).Error("Failed to stop telemetry")
+		if serr := telemetryService.Stop(shutdownCtx); serr != nil {
+			logger.WithError(serr).Error("Failed to stop telemetry")
 		}
 	}()
 

@@ -1,22 +1,21 @@
 package telemetry
 
 import (
-	"go.opentelemetry.io/otel/sdk/trace"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
-// CustomSampler implements rate-based sampling with always-on-error strategy
+// CustomSampler implements rate-based sampling with always-on-error strategy.
 type CustomSampler struct {
-	parentSampler      trace.Sampler // Parent-based sampler (respects upstream decisions)
-	rateSampler        trace.Sampler // Rate-based sampler
-	alwaysSampleErrors bool          // Always sample spans with errors
+	parentSampler      sdktrace.Sampler // Parent-based sampler (respects upstream decisions)
+	rateSampler        sdktrace.Sampler // Rate-based sampler
+	alwaysSampleErrors bool             // Always sample spans with errors
 }
 
 // NewCustomSampler creates a sampler that:
 // 1. Respects parent trace decisions (if trace context exists)
 // 2. Always samples errors (status >= 400) if enabled
-// 3. Otherwise samples based on configured rate
-func NewCustomSampler(sampleRate float64, alwaysSampleErrors bool) trace.Sampler {
+// 3. Otherwise samples based on configured rate.
+func NewCustomSampler(sampleRate float64, alwaysSampleErrors bool) sdktrace.Sampler {
 	rateSampler := sdktrace.TraceIDRatioBased(sampleRate)
 	parentSampler := sdktrace.ParentBased(rateSampler)
 
@@ -27,7 +26,7 @@ func NewCustomSampler(sampleRate float64, alwaysSampleErrors bool) trace.Sampler
 	}
 }
 
-// ShouldSample implements the trace.Sampler interface
+// ShouldSample implements the trace.Sampler interface.
 func (s *CustomSampler) ShouldSample(p sdktrace.SamplingParameters) sdktrace.SamplingResult {
 	// First, check parent-based sampling (respects upstream trace decisions)
 	parentResult := s.parentSampler.ShouldSample(p)
@@ -55,7 +54,7 @@ func (s *CustomSampler) ShouldSample(p sdktrace.SamplingParameters) sdktrace.Sam
 	return s.rateSampler.ShouldSample(p)
 }
 
-// Description returns the sampler description
+// Description returns the sampler description.
 func (s *CustomSampler) Description() string {
 	return "CustomSampler{parent-based + rate-based + always-on-error}"
 }

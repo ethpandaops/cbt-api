@@ -63,6 +63,10 @@ import (
 	"github.com/ethpandaops/xatu-cbt-api/internal/database"
 	"github.com/ethpandaops/xatu-cbt-api/internal/handlers"
 	clickhouse "github.com/ethpandaops/xatu-cbt/pkg/proto/clickhouse"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )`
