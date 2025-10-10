@@ -1,5 +1,9 @@
 .PHONY: help install-tools generate build run clean fmt lint test unit-test integration-test export-test-data
 
+# Use bash with xpg_echo option to interpret escape sequences globally
+SHELL := /bin/bash
+.SHELLFLAGS := -O xpg_echo -c
+
 # Colors for output
 CYAN := \033[0;36m
 GREEN := \033[0;32m
