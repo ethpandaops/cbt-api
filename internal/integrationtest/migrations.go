@@ -58,6 +58,7 @@ func RunMigrations(
 		// Skip migrations that reference external tables (default.*)
 		if shouldSkipMigration(file) {
 			fmt.Printf("  ⏭️  Skipping %s (references external tables)\n", filename)
+
 			continue
 		}
 

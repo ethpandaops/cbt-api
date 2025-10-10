@@ -26,6 +26,8 @@ Generates:
 
 ## Make Commands
 
+### Core Commands
+
 | Command | Description |
 |---------|-------------|
 | `make help` | Show available commands |
@@ -36,7 +38,15 @@ Generates:
 | `make clean` | Remove generated files and build artifacts |
 | `make fmt` | Format Go code |
 | `make lint` | Run linters |
-| `make test` | Run tests |
+
+### Testing Commands
+
+| Command | Description |
+|---------|-------------|
+| `make test` | Run all tests (unit + integration) |
+| `make unit-test` | Run unit tests only |
+| `make integration-test` | Run integration tests with race detector |
+| `make export-test-data` | Export test data from production ClickHouse |
 
 ## API Overview
 
@@ -150,6 +160,52 @@ func (s *Server) FctBlockServiceList(w http.ResponseWriter, r *http.Request, par
 
 Update xatu-cbt version in Makefile, then regenerate:
 ```bash
-make clean && make all
+make clean && make generate
 ```
+
+## Testing
+
+### Running Tests
+
+```bash
+# Run all tests
+make test
+
+# Run only unit tests (fast)
+make unit-test
+
+# Run only integration tests
+make integration-test
+```
+
+Integration tests use [testcontainers](https://testcontainers.com/) to spin up a ClickHouse instance, run migrations, seed test data, and verify all API endpoints.
+
+### Exporting Test Data
+
+The `export-test-data` command pulls sample data from a production ClickHouse instance to populate test fixtures:
+
+```bash
+# Export from default (localhost:8123, mainnet database)
+make export-test-data
+
+# Export from custom ClickHouse instance
+make export-test-data \
+  TESTDATA_EXPORT_HOST=https://clickhouse.prod.example.com \
+  TESTDATA_EXPORT_DATABASE=mainnet
+```
+
+**How it works:**
+1. Auto-detects all tables exposed in `openapi.yaml` (e.g., `fct_block`, `fct_attestation_*`)
+2. Exports 2 rows from each table using `SELECT * FROM {table} FINAL LIMIT 2`
+3. Saves as JSON to `internal/integrationtest/testdata/{table}.json`
+
+**When to use:**
+- After adding new API endpoints (new fact tables)
+- When test data becomes stale or outdated
+- When adding new fields to existing tables
+
+**Requirements:**
+- Access to a ClickHouse instance with xatu-cbt data
+- Tables must exist and contain data
+- Must have `openapi.yaml` generated (`make generate` first)
 

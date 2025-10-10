@@ -19,9 +19,9 @@ OUTPUT_FILE := ./openapi.yaml
 PREPROCESS_TOOL := ./cmd/tools/openapi-preprocess
 POSTPROCESS_TOOL := ./cmd/tools/openapi-postprocess
 
-# Integration test configuration
-CLICKHOUSE_HOST ?= http://localhost:8123
-CLICKHOUSE_DATABASE ?= mainnet
+# Test data export configuration (for exporting from production ClickHouse)
+TESTDATA_EXPORT_HOST ?= http://localhost:8123
+TESTDATA_EXPORT_DATABASE ?= mainnet
 TESTDATA_DIR := internal/integrationtest/testdata
 
 # Get googleapis path
@@ -186,13 +186,13 @@ lint:
 # Export test data from production ClickHouse
 # Auto-detects tables from openapi.yaml (any table exposed via API)
 export-test-data:
-	@echo "$(CYAN)==> Exporting test data from $(CLICKHOUSE_HOST) database $(CLICKHOUSE_DATABASE)...$(RESET)"
+	@echo "$(CYAN)==> Exporting test data from $(TESTDATA_EXPORT_HOST) database $(TESTDATA_EXPORT_DATABASE)...$(RESET)"
 	@mkdir -p $(TESTDATA_DIR)
 	@echo "$(CYAN)==> Auto-detecting tables from openapi.yaml...$(RESET)"
 	@for table in $$(grep -oE '/api/v1/[a-z_0-9]+' openapi.yaml | sed 's|/api/v1/||' | sort -u); do \
 		echo "$(CYAN)  -> Exporting $$table...$(RESET)"; \
-		curl -sS "$(CLICKHOUSE_HOST)" \
-			--data-binary "SELECT * FROM $(CLICKHOUSE_DATABASE).$$table FINAL LIMIT 2 FORMAT JSON" \
+		curl -sS "$(TESTDATA_EXPORT_HOST)" \
+			--data-binary "SELECT * FROM $(TESTDATA_EXPORT_DATABASE).$$table FINAL LIMIT 2 FORMAT JSON" \
 			-o "$(TESTDATA_DIR)/$$table.json" || echo "$(YELLOW)  ⚠️  Failed to export $$table (may be empty or inaccessible)$(RESET)"; \
 	done
 	@echo "$(GREEN)✓ Test data exported to $(TESTDATA_DIR)/$(RESET)"

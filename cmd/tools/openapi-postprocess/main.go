@@ -81,12 +81,8 @@ func addChTags(content string) string {
 //   - oapi-codegen generates optional fields as pointers (e.g., *[]string)
 //   - ClickHouse driver's Scan() cannot handle *[]T, only []T
 //   - oapi-codegen has no configuration option to disable pointers for arrays only
-//
-// This is a pragmatic solution that's safer than alternatives like:
-//   - Marking arrays as required (changes API contract)
-//   - Using custom x-go-type extensions (verbose, repetitive)
-//   - Forking oapi-codegen (maintenance burden)
 func fixArrayPointers(content string) string {
 	re := regexp.MustCompile(`\*\[\]([a-zA-Z0-9_]+)`)
+
 	return re.ReplaceAllString(content, "[]$1")
 }
