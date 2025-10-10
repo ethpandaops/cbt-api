@@ -9,7 +9,7 @@ RESET := \033[0m
 
 # xatu-cbt repository configuration
 XATU_CBT_REPO := https://github.com/ethpandaops/xatu-cbt.git
-XATU_CBT_VERSION ?= 782d9d468e26aecb145e383a957d89a138ec889b
+XATU_CBT_VERSION ?= master
 XATU_CBT_DIR := ./.xatu-cbt
 
 # Paths
