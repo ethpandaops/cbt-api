@@ -66,7 +66,7 @@ func (s *service) Start(ctx context.Context) error {
 		"environment":  s.config.Environment,
 		"network_name": s.networkName,
 		"sample_rate":  s.config.SampleRate,
-	}).Info("Initializing telemetry")
+	}).Info("Initialising telemetry")
 
 	// Create OTLP exporter
 	exporter, err := s.createExporter(ctx)
@@ -104,7 +104,7 @@ func (s *service) Start(ctx context.Context) error {
 		propagation.Baggage{},
 	))
 
-	s.log.Info("Telemetry initialized successfully")
+	s.log.Info("Telemetry initialised successfully")
 
 	return nil
 }
