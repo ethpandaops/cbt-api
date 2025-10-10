@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"bytes"
 	"compress/gzip"
 	"io"
 	"net/http"
@@ -30,40 +31,36 @@ var gzipPool = sync.Pool{
 	},
 }
 
-// gzipResponseWriter wraps http.ResponseWriter to provide gzip compression.
-type gzipResponseWriter struct {
-	io.Writer
+// Pool of buffers to reduce allocations.
+var bufferPool = sync.Pool{
+	New: func() interface{} {
+		return new(bytes.Buffer)
+	},
+}
+
+// bufferedResponseWriter captures response data to determine if compression is worthwhile.
+type bufferedResponseWriter struct {
 	http.ResponseWriter
-	headerWritten bool
+	buffer      *bytes.Buffer
+	statusCode  int
+	wroteHeader bool
 }
 
-// Write writes the data to the connection as part of an HTTP reply.
-func (w *gzipResponseWriter) Write(b []byte) (int, error) {
-	if !w.headerWritten {
-		// Set content encoding header before first write
-		if w.Header().Get("Content-Encoding") == "" {
-			w.Header().Set("Content-Encoding", "gzip")
-		}
-
-		w.Header().Del("Content-Length") // Remove content-length as it will change
-		w.headerWritten = true
+// Write writes the data to the buffer.
+func (w *bufferedResponseWriter) Write(b []byte) (int, error) {
+	if !w.wroteHeader {
+		w.WriteHeader(http.StatusOK)
 	}
 
-	return w.Writer.Write(b)
+	return w.buffer.Write(b)
 }
 
-// WriteHeader sends an HTTP response header with the provided status code.
-func (w *gzipResponseWriter) WriteHeader(code int) {
-	if !w.headerWritten {
-		if w.Header().Get("Content-Encoding") == "" {
-			w.Header().Set("Content-Encoding", "gzip")
-		}
-
-		w.Header().Del("Content-Length") // Remove content-length as it will change
-		w.headerWritten = true
+// WriteHeader captures the status code.
+func (w *bufferedResponseWriter) WriteHeader(code int) {
+	if !w.wroteHeader {
+		w.statusCode = code
+		w.wroteHeader = true
 	}
-
-	w.ResponseWriter.WriteHeader(code)
 }
 
 // GzipOption is a functional option for configuring the Gzip middleware.
@@ -84,7 +81,7 @@ func WithExcludePaths(paths ...string) GzipOption {
 }
 
 // Gzip returns a middleware that compresses HTTP responses using gzip.
-// It only compresses if the client supports gzip encoding.
+// It only compresses if the client supports gzip encoding and response size >= MinGzipSize.
 func Gzip(opts ...GzipOption) func(http.Handler) http.Handler {
 	cfg := &gzipConfig{
 		excludePaths: make(map[string]bool),
@@ -110,33 +107,62 @@ func Gzip(opts ...GzipOption) func(http.Handler) http.Handler {
 				return
 			}
 
-			// Get gzip writer from pool
-			gz, ok := gzipPool.Get().(*gzip.Writer)
+			// Get buffer from pool
+			buf, ok := bufferPool.Get().(*bytes.Buffer)
 			if !ok {
-				// If type assertion fails, serve uncompressed
-				next.ServeHTTP(w, r)
-
-				return
+				buf = new(bytes.Buffer)
 			}
 
-			defer gzipPool.Put(gz)
+			buf.Reset()
 
-			gz.Reset(w)
+			defer bufferPool.Put(buf)
 
-			defer func() {
-				_ = gz.Close()
-			}()
+			// Create buffered response writer
+			bw := &bufferedResponseWriter{
+				ResponseWriter: w,
+				buffer:         buf,
+				statusCode:     http.StatusOK,
+			}
 
 			// Set Vary header to indicate response varies based on Accept-Encoding
 			w.Header().Set("Vary", "Accept-Encoding")
 
-			// Wrap response writer
-			gzw := &gzipResponseWriter{
-				Writer:         gz,
-				ResponseWriter: w,
-			}
+			// Let handler write to buffer
+			next.ServeHTTP(bw, r)
 
-			next.ServeHTTP(gzw, r)
+			// Decide whether to compress based on size
+			if buf.Len() >= MinGzipSize {
+				// Response is large enough to benefit from compression
+				// Get gzip writer from pool
+				gz, ok := gzipPool.Get().(*gzip.Writer)
+				if !ok {
+					// If type assertion fails, send uncompressed
+					w.WriteHeader(bw.statusCode)
+					_, _ = io.Copy(w, buf)
+
+					return
+				}
+
+				defer gzipPool.Put(gz)
+
+				gz.Reset(w)
+
+				defer func() {
+					_ = gz.Close()
+				}()
+
+				// Set compression headers
+				w.Header().Set("Content-Encoding", "gzip")
+				w.Header().Del("Content-Length")
+				w.WriteHeader(bw.statusCode)
+
+				// Write compressed data
+				_, _ = io.Copy(gz, buf)
+			} else {
+				// Response is too small, send uncompressed
+				w.WriteHeader(bw.statusCode)
+				_, _ = io.Copy(w, buf)
+			}
 		})
 	}
 }

@@ -50,10 +50,10 @@ func TestGzip(t *testing.T) {
 			expectVaryHeader: false,
 		},
 		{
-			name:             "compresses small response",
+			name:             "does not compress small response (< MinGzipSize)",
 			acceptEncoding:   "gzip",
 			responseBody:     "small",
-			expectCompressed: true,
+			expectCompressed: false,
 			expectVaryHeader: true,
 		},
 		{
@@ -146,17 +146,19 @@ func TestGzip_WriteHeader(t *testing.T) {
 			handler.ServeHTTP(rec, req)
 
 			assert.Equal(t, tt.statusCode, rec.Code)
-			assert.Equal(t, "gzip", rec.Header().Get("Content-Encoding"))
+			// Empty response should not be compressed (< MinGzipSize)
+			assert.Empty(t, rec.Header().Get("Content-Encoding"))
 		})
 	}
 }
 
 func TestGzip_HeadersSetOnFirstWrite(t *testing.T) {
 	handler := Gzip()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Write multiple times
-		_, err := w.Write([]byte("first"))
+		// Write multiple times with data large enough to compress
+		data := strings.Repeat("test data ", 100)
+		_, err := w.Write([]byte(data))
 		require.NoError(t, err)
-		_, err = w.Write([]byte("second"))
+		_, err = w.Write([]byte(" more data"))
 		require.NoError(t, err)
 	}))
 
@@ -177,13 +179,16 @@ func TestGzip_HeadersSetOnFirstWrite(t *testing.T) {
 
 	decompressed, err := io.ReadAll(gr)
 	require.NoError(t, err)
-	assert.Equal(t, "firstsecond", string(decompressed))
+
+	expectedContent := strings.Repeat("test data ", 100) + " more data"
+	assert.Equal(t, expectedContent, string(decompressed))
 }
 
 func TestGzip_PoolReuse(t *testing.T) {
 	handler := Gzip()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		_, err := w.Write([]byte("test"))
+		// Use data large enough to trigger compression
+		_, err := w.Write([]byte(strings.Repeat("test data ", 100)))
 		require.NoError(t, err)
 	}))
 
