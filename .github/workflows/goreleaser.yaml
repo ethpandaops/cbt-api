@@ -47,9 +47,31 @@ jobs:
         run: sudo apt-get -y install gcc-aarch64-linux-gnu
       - name: Install make
         run: sudo apt-get -y install make
+      - name: Create config.yaml for proto generation
+        run: |
+          cat > config.yaml << EOF
+          clickhouse:
+            dsn: "${{ secrets.CLICKHOUSE_DSN }}"
+            database: "${{ secrets.CLICKHOUSE_DATABASE }}"
+            discovery:
+              prefixes:
+                - fct
+
+          proto:
+            output_dir: "./pkg/proto/clickhouse"
+            package: "cbt.v1"
+            go_package: "github.com/ethpandaops/xatu-cbt-api/pkg/proto/clickhouse"
+            include_comments: true
+
+          api:
+            base_path: "/api/v1"
+            expose_prefixes:
+              - fct
+          EOF
       - name: Install tools and generate code
         run: |
           make install-tools
+          make proto
           make generate
       - name: Set up QEMU
         uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
