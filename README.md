@@ -1,28 +1,42 @@
 # xatu-cbt-api
 
-Generates OpenAPI spec and server implementation for Xatu CBT REST API.
+Generates OpenAPI spec and server implementation for ClickHouse-based REST APIs using CBT (ClickHouse Build Tool).
 
 ## Overview
 
-Generates from [xatu-cbt](https://github.com/ethpandaops/xatu-cbt) proto definitions:
-- OpenAPI 3.0 specification with flattened filter parameters
-- Go server interface (via oapi-codegen)
-- Complete server implementation with automatic proto → HTTP mapping
+xatu-cbt-api is a **generic REST API generator** for any ClickHouse database managed with [CBT](https://github.com/ethpandaops/cbt). It automatically:
+- Discovers tables from your ClickHouse database
+- Generates Protocol Buffer definitions from table schemas
+- Creates a complete OpenAPI 3.0 specification
+- Generates a fully functional Go REST API server
+
+**What it generates:**
+- `pkg/proto/clickhouse/*.proto` - Protocol Buffer definitions from ClickHouse tables
+- `openapi.yaml` - OpenAPI 3.0 specification with flattened filter parameters
+- `internal/handlers/generated.go` - Server interface (via oapi-codegen)
+- `internal/server/implementation.go` - Complete server implementation with automatic query building
 
 ## Quick Start
 
 ```bash
-make install-tools  # One-time setup: install dependencies
-make generate       # Generate OpenAPI spec + server code
-make run            # Build and run the server
+# 1. Configure your ClickHouse connection
+cp config.example.yaml config.yaml
+# Edit config.yaml with your ClickHouse DSN and database
+
+# 2. One-time setup: install dependencies
+make install-tools
+
+# 3. Generate proto files from your ClickHouse tables
+make proto
+
+# 4. Generate OpenAPI spec + server code
+make generate
+
+# 5. Build and run the server
+make run
 ```
 
 Visit `http://localhost:8080/docs` to explore the API via Swagger UI.
-
-Generates:
-- `openapi.yaml` - OpenAPI spec
-- `internal/handlers/generated.go` - Server interface (oapi-codegen)
-- `internal/server/implementation.go` - Server implementation
 
 ## Make Commands
 
@@ -32,6 +46,7 @@ Generates:
 |---------|-------------|
 | `make help` | Show available commands |
 | `make install-tools` | One-time setup: install required dependencies |
+| `make proto` | Generate proto files from ClickHouse tables |
 | `make generate` | Generate OpenAPI spec and server code |
 | `make build` | Build the API server binary |
 | `make run` | Build and run the API server |
@@ -48,18 +63,76 @@ Generates:
 | `make integration-test` | Run integration tests with race detector |
 | `make export-test-data` | Export test data from production ClickHouse |
 
+## Configuration
+
+Copy `config.example.yaml` to `config.yaml` and configure:
+
+### ClickHouse Connection
+
+```yaml
+clickhouse:
+  dsn: "https://user:password@host:443"
+  database: "mainnet"
+  use_final: false  # Add FINAL modifier to queries
+
+  # Table discovery for proto generation
+  discovery:
+    prefixes:
+      - fct        # Discover fact tables
+      - dim        # Discover dimension tables
+    exclude:
+      - "*_test"   # Exclude test tables
+      - "*_tmp"    # Exclude temporary tables
+```
+
+### Proto Generation Settings
+
+```yaml
+proto:
+  output_dir: "./pkg/proto/clickhouse"
+  package: "cbt.v1"
+  go_package: "github.com/ethpandaops/xatu-cbt-api/pkg/proto/clickhouse"
+  include_comments: true
+```
+
+### API Exposure Settings
+
+```yaml
+api:
+  enable: true
+  base_path: "/api/v1"
+  # Only tables with these prefixes will be exposed via REST API
+  expose_prefixes:
+    - fct  # Expose fact tables
+```
+
+### Telemetry (Optional)
+
+```yaml
+telemetry:
+  enabled: true
+  endpoint: "tempo.example.com:443"
+  service_name: "cbt-api"
+  sample_rate: 0.1  # 10% sampling
+  always_sample_errors: true
+```
+
 ## API Overview
 
 ### Endpoints
 
-All fact tables (`fct_*`) from xatu-cbt are exposed as REST endpoints:
+All tables matching `api.expose_prefixes` are exposed as REST endpoints:
 
 ```
-GET /api/v1/fct_attestation_correctness_by_validator_head
 GET /api/v1/fct_block
+GET /api/v1/fct_attestation_correctness_by_validator_head
 GET /api/v1/fct_mev_bid_count_by_builder
 ...
 ```
+
+Each table gets two operations:
+- **List** - Query with filters, pagination, sorting (`GET /api/v1/{table}`)
+- **Get** - Retrieve by primary key (if available)
 
 ### Filter Parameters
 
@@ -80,42 +153,66 @@ Filters use underscore notation with operator suffixes:
 
 **Note:** List filters (`_in_values`, `_not_in_values`) use comma-separated strings.
 
-## Running the Server
+### Pagination
 
-### Configuration
-
-Copy `config.example.yaml` to `config.yaml` and configure your ClickHouse connection:
-
-```yaml
-clickhouse:
-  dsn: "clickhouse://user:password@localhost:9000"
-  database: "mainnet"
+```
+?page_size=100          # Items per page (default: 100, max: 10000)
+?page_token=offset_500  # Continue from previous page
 ```
 
-### Starting the Server
+### Sorting
 
-```bash
-# One-time setup
-make install-tools
-
-# Generate code and run
-make generate
-make run
+```
+?order_by=slot          # Sort by field
+?order_desc=true        # Descending order
 ```
 
-The server provides:
-- **API endpoints** at `/api/v1/*`
-- **Health check** at `/health`
-- **Metrics** at `/metrics`
-- **OpenAPI spec** at `/openapi.yaml`
-- **Swagger UI** at `/docs/`
+## How It Works
 
-## Server Implementation
+### Generation Pipeline
 
-The server implementation is **automatically generated** from proto descriptors:
+1. **Table Discovery** (`make proto`)
+   - Queries ClickHouse `system.tables` to find tables matching configured prefixes
+   - Generates proto files using [clickhouse-proto-gen](https://github.com/ethpandaops/clickhouse-proto-gen)
+   - Creates Protocol Buffer definitions from table schemas
+   - Generates query builder functions for each table
+
+2. **OpenAPI Generation** (`make generate`)
+   - Generates `.descriptors.pb` from proto files
+   - Creates `openapi.yaml` from proto annotations (HTTP mappings)
+   - Flattens nested filter parameters for REST-friendly URLs
+   - Generates server interface via oapi-codegen
+
+3. **Implementation Generation**
+   - Analyzes proto descriptors + OpenAPI spec
+   - Generates complete server implementation
+   - Maps HTTP parameters to proto request types
+   - Integrates with generated query builders
+
+### Request Flow
+
+```
+HTTP Request
+  ↓
+oapi-codegen Router (validates params)
+  ↓
+Generated Handler (maps HTTP → Proto)
+  ↓
+Query Builder (generates SQL from proto filters)
+  ↓
+ClickHouse Execution
+  ↓
+Result Scanning (Proto types)
+  ↓
+Type Conversion (Proto → OpenAPI)
+  ↓
+JSON Response
+```
+
+### Example: Generated Handler
 
 ```go
-// Example: internal/server/implementation.go (generated)
+// internal/server/implementation.go (auto-generated)
 func (s *Server) FctBlockServiceList(w http.ResponseWriter, r *http.Request, params handlers.FctBlockServiceListParams) {
     // 1. Map HTTP params → Proto request
     req := &clickhouse.ListFctBlockRequest{PageSize: 100}
@@ -125,42 +222,51 @@ func (s *Server) FctBlockServiceList(w http.ResponseWriter, r *http.Request, par
         }
     }
 
-    // 2. Use xatu-cbt query builder
-    sqlQuery, _ := clickhouse.BuildListFctBlockQuery(req)
+    // 2. Build SQL query from proto request
+    sqlQuery, _ := clickhouse.BuildListFctBlockQuery(req, queryOpts...)
 
-    // 3. Execute and return results
+    // 3. Execute on ClickHouse
     rows, _ := s.db.Query(ctx, sqlQuery.Query, sqlQuery.Args...)
-    // ... scan and respond
+
+    // 4. Scan results and convert Proto → OpenAPI
+    // 5. Return JSON response
 }
 ```
 
-**What's generated:**
-- All xatu-cbt endpoints (List + Get for each table)
-- HTTP params → Proto filter mapping
-- Query builder integration
-- ClickHouse execution + result scanning
-- Proto → OpenAPI type conversion
-
-## How It Works
-
-**Generation pipeline:**
-1. Proto descriptors → `.descriptors.pb` (via protoc)
-2. Proto files → `openapi.yaml` (via protoc-gen-openapi + flattening)
-3. OpenAPI → `internal/handlers/generated.go` (via oapi-codegen)
-4. Descriptors + OpenAPI → `internal/server/implementation.go` (via generate-implementation)
-
-**Request flow:**
-1. HTTP request → oapi-codegen router parses params
-2. Generated implementation maps params → proto filters
-3. Calls xatu-cbt query builder → SQL query
-4. Executes on ClickHouse → scan results
-5. Converts proto → OpenAPI types → JSON response
-
 ## Development
 
-Update xatu-cbt version in Makefile, then regenerate:
+### Updating Table Schemas
+
+When your ClickHouse tables change:
+
 ```bash
-make clean && make generate
+# Re-generate proto files from updated schemas
+make proto
+
+# Re-generate server code
+make generate
+
+# Test the changes
+make test
+```
+
+### Adding New Tables
+
+1. Update `config.yaml` to include new table prefixes in `discovery.prefixes`
+2. Run `make proto` to generate protos for new tables
+3. Run `make generate` to expose new tables via REST API
+
+### Excluding Tables
+
+Add patterns to `config.yaml`:
+
+```yaml
+clickhouse:
+  discovery:
+    exclude:
+      - "*_test"
+      - "*_tmp"
+      - "*_staging"
 ```
 
 ## Testing
@@ -205,7 +311,29 @@ make export-test-data \
 - When adding new fields to existing tables
 
 **Requirements:**
-- Access to a ClickHouse instance with xatu-cbt data
+- Access to a ClickHouse instance with CBT data
 - Tables must exist and contain data
 - Must have `openapi.yaml` generated (`make generate` first)
 
+## Using with Different CBT Projects
+
+This project is **generic** and can be used with any CBT-managed ClickHouse database:
+
+1. **Fork or clone** this repository
+2. **Update `config.yaml`** with your ClickHouse connection and table prefixes
+3. **Run `make proto`** to generate proto files from your tables
+4. **Run `make generate`** to create your REST API
+
+The generated API will automatically expose all tables matching your configured prefixes with full query capabilities.
+
+## Server Endpoints
+
+- **API endpoints** at `/api/v1/*`
+- **Health check** at `/health`
+- **Metrics** at `/metrics` (Prometheus format)
+- **OpenAPI spec** at `/openapi.yaml`
+- **Swagger UI** at `/docs/`
+
+## Dependencies
+
+Install with `make install-tools`.

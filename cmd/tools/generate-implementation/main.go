@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/ethpandaops/xatu-cbt-api/internal/config"
 )
 
 const (
@@ -21,8 +23,15 @@ func main() {
 	output := flag.String("output", "internal/server/implementation.go", "Output file")
 	flag.Parse()
 
+	// 0. Load config to get api.base_path
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Printf("Error loading config: %v\n", err)
+		os.Exit(1)
+	}
+
 	// 1. Load OpenAPI spec
-	spec, err := loadOpenAPI(*openapiPath)
+	spec, err := loadOpenAPI(cfg.API.BasePath, *openapiPath)
 	if err != nil {
 		fmt.Printf("Error loading OpenAPI: %v\n", err)
 		os.Exit(1)

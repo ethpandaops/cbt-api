@@ -52,7 +52,7 @@ type Field struct {
 }
 
 // loadOpenAPI loads and parses an OpenAPI specification file.
-func loadOpenAPI(path string) (*OpenAPISpec, error) {
+func loadOpenAPI(basePath string, path string) (*OpenAPISpec, error) {
 	loader := openapi3.NewLoader()
 
 	doc, err := loader.LoadFromFile(path)
@@ -77,7 +77,7 @@ func loadOpenAPI(path string) (*OpenAPISpec, error) {
 	for _, path := range paths {
 		pathItem := doc.Paths.Map()[path]
 		if pathItem.Get != nil {
-			endpoint := parseEndpoint(path, "GET", pathItem.Get)
+			endpoint := parseEndpoint(basePath, path, "GET", pathItem.Get)
 			spec.Endpoints = append(spec.Endpoints, endpoint)
 		}
 	}
@@ -93,7 +93,7 @@ func loadOpenAPI(path string) (*OpenAPISpec, error) {
 }
 
 // parseEndpoint parses an OpenAPI operation into an Endpoint struct.
-func parseEndpoint(path, method string, op *openapi3.Operation) Endpoint {
+func parseEndpoint(basePath string, path, method string, op *openapi3.Operation) Endpoint {
 	endpoint := Endpoint{
 		Path:        path,
 		Method:      method,
@@ -101,9 +101,12 @@ func parseEndpoint(path, method string, op *openapi3.Operation) Endpoint {
 		HandlerName: toHandlerName(op.OperationID),
 	}
 
-	// Extract table name from path: "/api/v1/fct_block" → "fct_block"
+	// Extract table name from path using configured base path
+	// e.g., "/api/v1/fct_block" with basePath "/api/v1" → "fct_block"
 	// or "/api/v1/fct_block/{slotStartDateTime}" → "fct_block"
-	parts := strings.Split(strings.TrimPrefix(path, "/api/v1/"), "/")
+	trimmedPath := strings.TrimPrefix(path, basePath)
+	trimmedPath = strings.TrimPrefix(trimmedPath, "/") // Remove leading slash
+	parts := strings.Split(trimmedPath, "/")
 	endpoint.TableName = parts[0]
 
 	// Determine operation type from OperationID: "FctBlockService_List" → "List"

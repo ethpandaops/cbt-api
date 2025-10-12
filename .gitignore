@@ -37,7 +37,9 @@ config.yaml
 *.iml
 
 # Generated files
+.tables.txt
 tmp/
+pkg/
 openapi.yaml
 openapi.json
 .xatu-cbt/

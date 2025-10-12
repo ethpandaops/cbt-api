@@ -599,7 +599,7 @@ func TestParseEndpoint(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := parseEndpoint(tt.path, tt.method, tt.op)
+			got := parseEndpoint("/api/v1", tt.path, tt.method, tt.op)
 
 			assert.Equal(t, tt.expected.Path, got.Path, "Path mismatch")
 			assert.Equal(t, tt.expected.Method, got.Method, "Method mismatch")
