@@ -10,7 +10,8 @@ RESET := \033[0m
 # Config file (can be overridden for tests: make proto CONFIG_FILE=config.test.yaml)
 CONFIG_FILE ?= config.yaml
 
-# Read configuration from config file
+# Read configuration from config file (only if it exists)
+ifneq (,$(wildcard $(CONFIG_FILE)))
 CLICKHOUSE_DSN := $(shell yq eval '.clickhouse.dsn' $(CONFIG_FILE))
 CLICKHOUSE_DB := $(shell yq eval '.clickhouse.database' $(CONFIG_FILE))
 DISCOVERY_PREFIXES := $(shell yq eval '.clickhouse.discovery.prefixes | join(",")' $(CONFIG_FILE))
@@ -25,6 +26,7 @@ PROTO_INCLUDE_COMMENTS := $(shell yq eval '.proto.include_comments' $(CONFIG_FIL
 # API settings
 API_BASE_PATH := $(shell yq eval '.api.base_path' $(CONFIG_FILE))
 API_EXPOSE_PREFIXES := $(shell yq eval '.api.expose_prefixes | join(",")' $(CONFIG_FILE))
+endif
 
 # Paths
 PROTO_PATH := $(PROTO_OUTPUT)
@@ -308,8 +310,8 @@ lint:
 .ensure-protos:
 	@if [ ! -f "internal/server/openapi.yaml" ]; then \
 		printf "$(YELLOW)⚠️  Generated files missing. Starting example ClickHouse...$(RESET)\n"; \
-		docker-compose -f examples/docker-compose.yml down -v 2>/dev/null || true; \
-		docker-compose -f examples/docker-compose.yml up -d; \
+		docker compose -f examples/docker-compose.yml down -v 2>/dev/null || true; \
+		docker compose -f examples/docker-compose.yml up -d; \
 		printf "$(CYAN)==> Waiting for ClickHouse to be healthy...$(RESET)\n"; \
 		timeout 60 bash -c 'until [ "$$(docker inspect -f {{.State.Health.Status}} xatu-cbt-api-clickhouse 2>/dev/null)" = "healthy" ]; do sleep 1; done'; \
 		printf "$(CYAN)==> Removing network restriction...$(RESET)\n"; \
@@ -341,7 +343,7 @@ lint:
 		printf "$(CYAN)==> Generating protos with test config...$(RESET)\n"; \
 		$(MAKE) proto generate CONFIG_FILE=config.test.yaml; \
 		printf "$(CYAN)==> Cleaning up...$(RESET)\n"; \
-		docker-compose -f examples/docker-compose.yml down -v; \
+		docker compose -f examples/docker-compose.yml down -v; \
 		rm -f config.test.yaml; \
 		printf "$(GREEN)✓ Proto generation complete$(RESET)\n"; \
 	fi
