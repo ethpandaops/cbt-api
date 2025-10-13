@@ -29,7 +29,7 @@ func New(cfg *config.Config, logger logrus.FieldLogger) (*http.Server, error) {
 	}
 
 	// Wrap database client with tracing
-	tracedDB := telemetry.NewTracedClient(db, cfg.ClickHouse.Database, logger)
+	var tracedDB database.DatabaseClient = telemetry.NewTracedClient(db, cfg.ClickHouse.Database, logger)
 
 	// Create generated server implementation.
 	impl := &Server{

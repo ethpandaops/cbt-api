@@ -23,7 +23,7 @@ func TestCodeGenerator_generateHeader(t *testing.T) {
 	assert.Contains(t, got, "github.com/ethpandaops/xatu-cbt-api/internal/config")
 	assert.Contains(t, got, "github.com/ethpandaops/xatu-cbt-api/internal/database")
 	assert.Contains(t, got, "github.com/ethpandaops/xatu-cbt-api/internal/handlers")
-	assert.Contains(t, got, "github.com/ethpandaops/xatu-cbt/pkg/proto/clickhouse")
+	assert.Contains(t, got, "github.com/ethpandaops/xatu-cbt-api/pkg/proto/clickhouse")
 	assert.Contains(t, got, "google.golang.org/protobuf/types/known/emptypb")
 	assert.Contains(t, got, "google.golang.org/protobuf/types/known/wrapperspb")
 

@@ -63,7 +63,7 @@ import (
 	"github.com/ethpandaops/xatu-cbt-api/internal/database"
 	apierrors "github.com/ethpandaops/xatu-cbt-api/internal/errors"
 	"github.com/ethpandaops/xatu-cbt-api/internal/handlers"
-	clickhouse "github.com/ethpandaops/xatu-cbt/pkg/proto/clickhouse"
+	clickhouse "github.com/ethpandaops/xatu-cbt-api/pkg/proto/clickhouse"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"

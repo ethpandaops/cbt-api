@@ -11,7 +11,23 @@ import (
 type Config struct {
 	Server     ServerConfig     `mapstructure:"server"`
 	ClickHouse ClickHouseConfig `mapstructure:"clickhouse"`
+	Proto      ProtoConfig      `mapstructure:"proto"`
+	API        APIConfig        `mapstructure:"api"`
 	Telemetry  TelemetryConfig  `mapstructure:"telemetry"`
+}
+
+// ProtoConfig holds Protocol Buffer generation configuration.
+type ProtoConfig struct {
+	OutputDir       string `mapstructure:"output_dir"`
+	Package         string `mapstructure:"package"`
+	GoPackage       string `mapstructure:"go_package"`
+	IncludeComments bool   `mapstructure:"include_comments"`
+}
+
+// APIConfig holds API exposure configuration.
+type APIConfig struct {
+	BasePath       string   `mapstructure:"base_path"`
+	ExposePrefixes []string `mapstructure:"expose_prefixes"`
 }
 
 // ServerConfig holds server-specific configuration.
@@ -28,9 +44,10 @@ type ServerConfig struct {
 
 // ClickHouseConfig holds ClickHouse database configuration.
 type ClickHouseConfig struct {
-	DSN      string `mapstructure:"dsn"`
-	Database string `mapstructure:"database"`
-	UseFinal bool   `mapstructure:"use_final"`
+	DSN       string               `mapstructure:"dsn"`
+	Database  string               `mapstructure:"database"`
+	UseFinal  bool                 `mapstructure:"use_final"`
+	Discovery TableDiscoveryConfig `mapstructure:"discovery"`
 
 	// Connection pool settings
 	MaxOpenConns    int           `mapstructure:"max_open_conns"`
@@ -45,6 +62,12 @@ type ClickHouseConfig struct {
 
 	// TLS settings
 	InsecureSkipVerify bool `mapstructure:"insecure_skip_verify"`
+}
+
+// TableDiscoveryConfig holds table discovery configuration for proto generation.
+type TableDiscoveryConfig struct {
+	Prefixes []string `mapstructure:"prefixes"`
+	Exclude  []string `mapstructure:"exclude"`
 }
 
 // TelemetryConfig holds OpenTelemetry configuration.
@@ -95,6 +118,16 @@ func Load() (*Config, error) {
 	viper.SetDefault("clickhouse.max_execution_time", 60)
 	viper.SetDefault("clickhouse.use_final", false)
 	viper.SetDefault("clickhouse.insecure_skip_verify", false)
+
+	// Proto defaults
+	viper.SetDefault("proto.output_dir", "./pkg/proto/clickhouse")
+	viper.SetDefault("proto.package", "cbt.v1")
+	viper.SetDefault("proto.go_package", "github.com/ethpandaops/xatu-cbt-api/pkg/proto/clickhouse")
+	viper.SetDefault("proto.include_comments", true)
+
+	// API defaults
+	viper.SetDefault("api.base_path", "/api/v1")
+	viper.SetDefault("api.expose_prefixes", []string{"fct"})
 
 	// Telemetry defaults
 	viper.SetDefault("telemetry.enabled", false)

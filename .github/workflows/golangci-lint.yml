@@ -20,6 +20,29 @@ jobs:
       - uses: ./.github/workflows/go-setup
       - name: Install tools
         run: make install-tools
+      - name: Create config.yaml for proto generation
+        run: |
+          cat > config.yaml << EOF
+          clickhouse:
+            dsn: "${{ secrets.CLICKHOUSE_DSN }}"
+            database: "${{ secrets.CLICKHOUSE_DATABASE }}"
+            discovery:
+              prefixes:
+                - fct
+
+          proto:
+            output_dir: "./pkg/proto/clickhouse"
+            package: "cbt.v1"
+            go_package: "github.com/ethpandaops/xatu-cbt-api/pkg/proto/clickhouse"
+            include_comments: true
+
+          api:
+            base_path: "/api/v1"
+            expose_prefixes:
+              - fct
+          EOF
+      - name: Generate proto files
+        run: make proto
       - name: Generate code
         run: make generate
       - name: golangci-lint

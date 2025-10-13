@@ -8,8 +8,8 @@ server:
 
 clickhouse:
   dsn: "https://user:pass@host"
-  database: "mainnet"
-  use_final: true
+  database: "mydb"
+  use_final: false
   max_open_conns: 10
   max_idle_conns: 5
   conn_max_lifetime: 60s
@@ -18,42 +18,36 @@ clickhouse:
   write_timeout: 30s
   max_execution_time: 60
   insecure_skip_verify: false
+  discovery:
+    prefixes:
+      - fct
+      - dim
+    exclude:
+      - "*_test"   # Exclude test tables (example)
+      - "*_tmp"    # Exclude temporary tables  (example)
 
-# OpenTelemetry tracing configuration
+proto:
+  output_dir: "./pkg/proto/clickhouse"
+  package: "cbt.v1"
+  go_package: "github.com/ethpandaops/xatu-cbt-api/pkg/proto/clickhouse"
+  include_comments: true
+
+api:
+  base_path: "/api/v1"
+  # Only tables with these prefixes will be exposed via REST API
+  expose_prefixes:
+    - fct
+
 telemetry:
-  # Enable/disable tracing
   enabled: false
-
-  # OTLP gRPC endpoint (Grafana Tempo)
-  # Format: "host:port" (e.g., "tempo.example.com:443")
   endpoint: "tempo.example.com:443"
-
-  # Use insecure connection (development only, should be false in production)
   insecure: false
-
-  # Authentication headers (for Tempo auth)
-  # Example: Authorization header with Bearer token
   headers:
     Authorization: "Bearer <your-token-here>"
-
-  # Service identification
-  service_name: "xatu-cbt-api"
+  service_name: "cbt-api"
   service_version: "1.0.0"
-
-  # Environment/network label (defaults to database name if not specified)
-  # This appears as "network.name" attribute in traces
   environment: "mainnet"
-
-  # Sampling configuration
-  # sample_rate: Percentage of traces to sample (0.0 to 1.0)
-  #   0.0 = no sampling (except errors if always_sample_errors=true)
-  #   0.1 = 10% sampling
-  #   1.0 = 100% sampling (all traces)
   sample_rate: 0.1
-
-  # Always sample requests that return HTTP status >= 400
   always_sample_errors: true
-
-  # Export settings
   export_timeout: 10s
   export_batch_size: 512
