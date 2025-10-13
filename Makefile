@@ -193,9 +193,10 @@ run: build
 	if echo "$$NATIVE_DSN" | grep -q "^https://"; then \
 		NATIVE_DSN="$$NATIVE_DSN?secure=true"; \
 	fi; \
-	NATIVE_DSN=$$(echo "$$NATIVE_DSN" | sed 's|localhost|host.docker.internal|g'); \
+	NATIVE_DSN=$$(echo "$$NATIVE_DSN" | sed 's|localhost|clickhouse|g'); \
 	docker run --rm -v "$$(pwd):/workspace" \
 	  --user "$$(id -u):$$(id -g)" \
+	  --network examples_default \
 	  ethpandaops/clickhouse-proto-gen \
 	  --dsn "$$NATIVE_DSN" \
 	  --tables "$$TABLES" \
