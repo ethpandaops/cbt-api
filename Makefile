@@ -7,21 +7,24 @@ YELLOW := \033[0;33m
 RED := \033[0;31m
 RESET := \033[0m
 
-# Read configuration from config.yaml
-CLICKHOUSE_DSN := $(shell yq eval '.clickhouse.dsn' config.yaml)
-CLICKHOUSE_DB := $(shell yq eval '.clickhouse.database' config.yaml)
-DISCOVERY_PREFIXES := $(shell yq eval '.clickhouse.discovery.prefixes | join(",")' config.yaml)
-DISCOVERY_EXCLUDE := $(shell yq eval '.clickhouse.discovery.exclude | join(",")' config.yaml)
+# Config file (can be overridden for tests: make proto CONFIG_FILE=config.test.yaml)
+CONFIG_FILE ?= config.yaml
+
+# Read configuration from config file
+CLICKHOUSE_DSN := $(shell yq eval '.clickhouse.dsn' $(CONFIG_FILE))
+CLICKHOUSE_DB := $(shell yq eval '.clickhouse.database' $(CONFIG_FILE))
+DISCOVERY_PREFIXES := $(shell yq eval '.clickhouse.discovery.prefixes | join(",")' $(CONFIG_FILE))
+DISCOVERY_EXCLUDE := $(shell yq eval '(.clickhouse.discovery.exclude // []) | join(",")' $(CONFIG_FILE))
 
 # Proto generation settings
-PROTO_OUTPUT := $(shell yq eval '.proto.output_dir' config.yaml)
-PROTO_PACKAGE := $(shell yq eval '.proto.package' config.yaml)
-PROTO_GO_PACKAGE := $(shell yq eval '.proto.go_package' config.yaml)
-PROTO_INCLUDE_COMMENTS := $(shell yq eval '.proto.include_comments' config.yaml)
+PROTO_OUTPUT := $(shell yq eval '.proto.output_dir' $(CONFIG_FILE))
+PROTO_PACKAGE := $(shell yq eval '.proto.package' $(CONFIG_FILE))
+PROTO_GO_PACKAGE := $(shell yq eval '.proto.go_package' $(CONFIG_FILE))
+PROTO_INCLUDE_COMMENTS := $(shell yq eval '.proto.include_comments' $(CONFIG_FILE))
 
 # API settings
-API_BASE_PATH := $(shell yq eval '.api.base_path' config.yaml)
-API_EXPOSE_PREFIXES := $(shell yq eval '.api.expose_prefixes | join(",")' config.yaml)
+API_BASE_PATH := $(shell yq eval '.api.base_path' $(CONFIG_FILE))
+API_EXPOSE_PREFIXES := $(shell yq eval '.api.expose_prefixes | join(",")' $(CONFIG_FILE))
 
 # Paths
 PROTO_PATH := $(PROTO_OUTPUT)
@@ -56,6 +59,34 @@ help: ## Show this help message
 # Install required development tools (one-time setup)
 install-tools:
 	@printf "$(CYAN)==> Installing required tools...$(RESET)\n"
+	@if ! command -v yq >/dev/null 2>&1; then \
+		printf "$(YELLOW)==> Installing yq...$(RESET)\n"; \
+		if [ "$$(uname)" = "Linux" ]; then \
+			if command -v apk >/dev/null 2>&1; then \
+				apk add --no-cache yq; \
+			elif command -v apt-get >/dev/null 2>&1; then \
+				if [ "$$(id -u)" -eq 0 ]; then \
+					apt-get update && apt-get install -y wget && \
+					wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 && \
+					chmod +x /usr/local/bin/yq; \
+				else \
+					sudo apt-get update && sudo apt-get install -y wget && \
+					sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 && \
+					sudo chmod +x /usr/local/bin/yq; \
+				fi; \
+			else \
+				printf "$(RED)Error: No supported package manager found$(RESET)\n"; \
+				exit 1; \
+			fi; \
+		elif [ "$$(uname)" = "Darwin" ]; then \
+			brew install yq; \
+		else \
+			printf "$(RED)Error: Unsupported OS$(RESET)\n"; \
+			exit 1; \
+		fi; \
+	else \
+		printf "$(GREEN)✓ yq already installed$(RESET)\n"; \
+	fi
 	@if ! command -v protoc >/dev/null 2>&1; then \
 		printf "$(YELLOW)==> Installing protoc...$(RESET)\n"; \
 		if [ "$$(uname)" = "Linux" ]; then \
@@ -126,18 +157,22 @@ run: build
 	EXCLUDE_CONDITIONS=$$(echo "$(DISCOVERY_EXCLUDE)" | tr ',' '\n' | sed "s/^/name NOT LIKE '/; s/$$/'/" | paste -sd'&' - | sed 's/&/ AND /g'); \
 	QUERY="SELECT arrayStringConcat(groupArray(name), ',') FROM system.tables WHERE database = '$(CLICKHOUSE_DB)' AND ($$PREFIX_CONDITIONS)"; \
 	if [ -n "$$EXCLUDE_CONDITIONS" ]; then QUERY="$$QUERY AND ($$EXCLUDE_CONDITIONS)"; fi; \
-	CH_PROTO=$$(echo "$(CLICKHOUSE_DSN)" | sed 's|^\([^:]*\)://.*|\1|'); \
-	CH_HOST=$$(echo "$(CLICKHOUSE_DSN)" | sed 's|.*://[^@]*@\([^:]*\).*|\1|'); \
-	CH_PORT=$$(echo "$(CLICKHOUSE_DSN)" | sed 's|.*:\([0-9]*\)$$|\1|'); \
-	CH_USER=$$(echo "$(CLICKHOUSE_DSN)" | sed 's|.*://\([^:]*\):.*|\1|'); \
-	CH_PASS=$$(echo "$(CLICKHOUSE_DSN)" | sed 's|.*://[^:]*:\([^@]*\)@.*|\1|'); \
-	if [ "$$CH_PROTO" = "https" ] || [ "$$CH_PROTO" = "http" ]; then \
-		CH_URL="$$CH_PROTO://$$CH_HOST:$$CH_PORT"; \
-	else \
+	CH_DSN="$(CLICKHOUSE_DSN)"; \
+	CH_PROTO=$$(echo "$$CH_DSN" | sed 's|^\([^:]*\)://.*|\1|'); \
+	CH_HOST=$$(echo "$$CH_DSN" | sed 's|.*://[^@]*@\([^:/]*\).*|\1|'); \
+	CH_PORT=$$(echo "$$CH_DSN" | sed -n 's|.*://[^@]*@[^:]*:\([0-9][0-9]*\)[^0-9].*|\1|p'); \
+	CH_USER=$$(echo "$$CH_DSN" | sed 's|.*://\([^:]*\):.*|\1|'); \
+	CH_PASS=$$(echo "$$CH_DSN" | sed 's|.*://[^:]*:\([^@]*\)@.*|\1|'); \
+	if [ "$$CH_PROTO" = "https" ]; then \
+		if [ -z "$$CH_PORT" ]; then CH_PORT=443; fi; \
+		CH_URL="https://$$CH_HOST:$$CH_PORT"; \
+	elif [ "$$CH_PROTO" = "http" ]; then \
+		if [ -z "$$CH_PORT" ]; then CH_PORT=80; fi; \
 		CH_URL="http://$$CH_HOST:$$CH_PORT"; \
+	else \
+		CH_URL="http://$$CH_HOST:8123"; \
 	fi; \
-	printf "$(CYAN)  URL: $$CH_URL$(RESET)\n"; \
-	TABLES=$$(curl -fsSL "$$CH_URL" \
+	TABLES=$$(curl -fsSL "$$CH_URL/?database=$(CLICKHOUSE_DB)" \
 	  --user "$$CH_USER:$$CH_PASS" \
 	  --data-binary "$$QUERY FORMAT TSVRaw" 2>&1); \
 	CURL_EXIT=$$?; \
@@ -152,9 +187,7 @@ run: build
 .proto: .discover-tables
 	@printf "$(CYAN)==> Generating Protocol Buffers from ClickHouse...$(RESET)\n"
 	@TABLES=$$(cat .tables.txt); \
-	BASE_DSN="$(CLICKHOUSE_DSN)"; \
-	BASE_DSN=$${BASE_DSN%/}; \
-	NATIVE_DSN="$$BASE_DSN/$(CLICKHOUSE_DB)"; \
+	NATIVE_DSN="$(CLICKHOUSE_DSN)/$(CLICKHOUSE_DB)"; \
 	if echo "$$NATIVE_DSN" | grep -q "^https://"; then \
 		NATIVE_DSN="$$NATIVE_DSN?secure=true"; \
 	fi; \
@@ -271,8 +304,50 @@ lint:
 		printf "$(YELLOW)golangci-lint not installed, skipping...$(RESET)\n"; \
 	fi
 
+# Internal: Ensure proto files exist (generates from example schema if missing)
+.ensure-protos:
+	@if [ ! -f "internal/server/openapi.yaml" ]; then \
+		printf "$(YELLOW)⚠️  Generated files missing. Starting example ClickHouse...$(RESET)\n"; \
+		docker-compose -f examples/docker-compose.yml down -v 2>/dev/null || true; \
+		docker-compose -f examples/docker-compose.yml up -d; \
+		printf "$(CYAN)==> Waiting for ClickHouse to be healthy...$(RESET)\n"; \
+		timeout 60 bash -c 'until [ "$$(docker inspect -f {{.State.Health.Status}} xatu-cbt-api-clickhouse 2>/dev/null)" = "healthy" ]; do sleep 1; done'; \
+		printf "$(CYAN)==> Removing network restriction...$(RESET)\n"; \
+		docker exec xatu-cbt-api-clickhouse rm -f /etc/clickhouse-server/users.d/default-user.xml; \
+		docker exec xatu-cbt-api-clickhouse clickhouse-client --query "SYSTEM RELOAD CONFIG"; \
+		sleep 2; \
+		printf "$(CYAN)==> Loading example schema...$(RESET)\n"; \
+		for table_file in examples/table_*.sql; do \
+			cat "$$table_file" | curl -X POST "http://localhost:8123/?database=testdb" --user default: --data-binary @- || exit 1; \
+		done; \
+		printf "$(CYAN)==> Creating config.test.yaml...$(RESET)\n"; \
+		printf "%s\n" "clickhouse:" > config.test.yaml; \
+		printf "%s\n" "  dsn: \"clickhouse://default:@localhost:9000\"" >> config.test.yaml; \
+		printf "%s\n" "  database: \"testdb\"" >> config.test.yaml; \
+		printf "%s\n" "  discovery:" >> config.test.yaml; \
+		printf "%s\n" "    prefixes:" >> config.test.yaml; \
+		printf "%s\n" "      - fct" >> config.test.yaml; \
+		printf "%s\n" "" >> config.test.yaml; \
+		printf "%s\n" "proto:" >> config.test.yaml; \
+		printf "%s\n" "  output_dir: \"./pkg/proto/clickhouse\"" >> config.test.yaml; \
+		printf "%s\n" "  package: \"cbt.v1\"" >> config.test.yaml; \
+		printf "%s\n" "  go_package: \"github.com/ethpandaops/xatu-cbt-api/pkg/proto/clickhouse\"" >> config.test.yaml; \
+		printf "%s\n" "  include_comments: true" >> config.test.yaml; \
+		printf "%s\n" "" >> config.test.yaml; \
+		printf "%s\n" "api:" >> config.test.yaml; \
+		printf "%s\n" "  base_path: \"/api/v1\"" >> config.test.yaml; \
+		printf "%s\n" "  expose_prefixes:" >> config.test.yaml; \
+		printf "%s\n" "    - fct" >> config.test.yaml; \
+		printf "$(CYAN)==> Generating protos with test config...$(RESET)\n"; \
+		$(MAKE) proto generate CONFIG_FILE=config.test.yaml; \
+		printf "$(CYAN)==> Cleaning up...$(RESET)\n"; \
+		docker-compose -f examples/docker-compose.yml down -v; \
+		rm -f config.test.yaml; \
+		printf "$(GREEN)✓ Proto generation complete$(RESET)\n"; \
+	fi
+
 # Run all tests
-test: unit-test
+test: .ensure-protos unit-test
 	@printf "$(GREEN)✓ All tests passed$(RESET)\n"
 
 # Run unit tests only
