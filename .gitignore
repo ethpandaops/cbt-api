@@ -62,3 +62,5 @@ Thumbs.db
 *.backup
 .descriptors.pb
 .goreleaser.yaml.new
+config.yaml
+config.test.yaml
