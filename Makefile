@@ -1,4 +1,4 @@
-.PHONY: help install-tools proto generate build run clean fmt lint test unit-test integration-test export-test-data
+.PHONY: help install-tools proto generate build run clean fmt lint test unit-test
 
 # Colors for output (use printf for cross-platform compatibility)
 CYAN := \033[0;36m
@@ -30,11 +30,6 @@ OUTPUT_FILE := ./openapi.yaml
 PREPROCESS_TOOL := ./cmd/tools/openapi-preprocess
 POSTPROCESS_TOOL := ./cmd/tools/openapi-postprocess
 
-# Test data export configuration (for exporting from production ClickHouse)
-TESTDATA_EXPORT_HOST ?= http://localhost:8123
-TESTDATA_EXPORT_DATABASE ?= mainnet
-TESTDATA_DIR := internal/integrationtest/testdata
-
 # Get googleapis path
 GOOGLEAPIS_PATH := $(shell go list -m -f '{{.Dir}}' github.com/googleapis/googleapis 2>/dev/null || echo "")
 
@@ -53,12 +48,10 @@ help: ## Show this help message
 	@printf "  $(CYAN)make clean$(RESET)          # Remove generated files and build artifacts\n"
 	@printf "  $(CYAN)make fmt$(RESET)            # Format Go code\n"
 	@printf "  $(CYAN)make lint$(RESET)           # Run linters\n"
-	@printf "  $(CYAN)make test$(RESET)           # Run all tests (unit + integration)\n"
+	@printf "  $(CYAN)make test$(RESET)           # Run unit tests\n"
 	@printf "\n"
 	@printf "$(GREEN)Testing:$(RESET)\n"
 	@printf "  $(CYAN)make unit-test$(RESET)      # Run unit tests only\n"
-	@printf "  $(CYAN)make integration-test$(RESET) # Run integration tests\n"
-	@printf "  $(CYAN)make export-test-data$(RESET) # Export test data from production ClickHouse\n"
 
 # Install required development tools (one-time setup)
 install-tools:
@@ -128,7 +121,7 @@ run: build
 
 # Internal targets (not meant to be called directly)
 .discover-tables:
-	@printf "$(CYAN)==> Discovering tables from ClickHouse (DSN from config.yaml)...$(RESET)\n"
+	@printf "$(CYAN)==> Discovering tables from ClickHouse...$(RESET)\n"
 	@PREFIX_CONDITIONS=$$(echo "$(DISCOVERY_PREFIXES)" | tr ',' '\n' | sed "s/^/name LIKE '/; s/$$/_%%'/" | paste -sd'|' - | sed 's/|/ OR /g'); \
 	EXCLUDE_CONDITIONS=$$(echo "$(DISCOVERY_EXCLUDE)" | tr ',' '\n' | sed "s/^/name NOT LIKE '/; s/$$/'/" | paste -sd'&' - | sed 's/&/ AND /g'); \
 	QUERY="SELECT arrayStringConcat(groupArray(name), ',') FROM system.tables WHERE database = '$(CLICKHOUSE_DB)' AND ($$PREFIX_CONDITIONS)"; \
@@ -175,6 +168,7 @@ run: build
 	  --package $(PROTO_PACKAGE) \
 	  --go-package $(PROTO_GO_PACKAGE) \
 	  --include-comments=$(PROTO_INCLUDE_COMMENTS) \
+	  --enable-api \
 	  --api-table-prefixes $(API_EXPOSE_PREFIXES) \
 	  --api-base-path $(API_BASE_PATH) \
 	  --verbose \
@@ -277,34 +271,13 @@ lint:
 		printf "$(YELLOW)golangci-lint not installed, skipping...$(RESET)\n"; \
 	fi
 
-# Export test data from production ClickHouse
-# Auto-detects tables from openapi.yaml (any table exposed via API)
-export-test-data:
-	@printf "$(CYAN)==> Exporting test data from $(TESTDATA_EXPORT_HOST) database $(TESTDATA_EXPORT_DATABASE)...$(RESET)\n"
-	@mkdir -p $(TESTDATA_DIR)
-	@printf "$(CYAN)==> Auto-detecting tables from openapi.yaml...$(RESET)\n"
-	@BASE_PATH_PATTERN=$$(echo "$(API_BASE_PATH)" | sed 's|/|\\/|g'); \
-	for table in $$(grep -oE "$(API_BASE_PATH)/[a-z_0-9]+" openapi.yaml | sed "s|$$BASE_PATH_PATTERN/||" | sort -u); do \
-		printf "$(CYAN)  -> Exporting $$table...$(RESET)\n"; \
-		curl -sS "$(TESTDATA_EXPORT_HOST)" \
-			--data-binary "SELECT * FROM $(TESTDATA_EXPORT_DATABASE).$$table FINAL LIMIT 2 FORMAT JSON" \
-			-o "$(TESTDATA_DIR)/$$table.json" || printf "$(YELLOW)  ⚠️  Failed to export $$table (may be empty or inaccessible)$(RESET)\n"; \
-	done
-	@printf "$(GREEN)✓ Test data exported to $(TESTDATA_DIR)/$(RESET)\n"
-
-# Run all tests (unit + integration)
-test: unit-test integration-test
+# Run all tests
+test: unit-test
 	@printf "$(GREEN)✓ All tests passed$(RESET)\n"
 
-# Run unit tests only (excludes integration tests)
+# Run unit tests only
 unit-test:
 	@printf "$(CYAN)==> Running unit tests...$(RESET)\n"
 	@go install gotest.tools/gotestsum@latest
-	@gotestsum --raw-command go test -v -race -failfast -coverprofile=coverage.out -covermode=atomic -json $$(go list ./... | grep -v /integrationtest) && \
+	@gotestsum --raw-command go test -v -race -failfast -coverprofile=coverage.out -covermode=atomic -json $$(go list ./...) && \
 		printf "$(GREEN)✓ Unit tests passed$(RESET)\n"
-
-# Run integration tests
-integration-test:
-	@printf "$(CYAN)==> Running integration tests...$(RESET)\n"
-	@bash -c "set -o pipefail; go test -v -race -timeout=5m ./internal/integrationtest/... | tee integration-test.log" && \
-		printf "$(GREEN)✓ Integration tests passed$(RESET)\n"

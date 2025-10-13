@@ -58,10 +58,8 @@ Visit `http://localhost:8080/docs` to explore the API via Swagger UI.
 
 | Command | Description |
 |---------|-------------|
-| `make test` | Run all tests (unit + integration) |
+| `make test` | Run unit tests |
 | `make unit-test` | Run unit tests only |
-| `make integration-test` | Run integration tests with race detector |
-| `make export-test-data` | Export test data from production ClickHouse |
 
 ## Configuration
 
@@ -277,43 +275,9 @@ clickhouse:
 # Run all tests
 make test
 
-# Run only unit tests (fast)
+# Run only unit tests
 make unit-test
-
-# Run only integration tests
-make integration-test
 ```
-
-Integration tests use [testcontainers](https://testcontainers.com/) to spin up a ClickHouse instance, run migrations, seed test data, and verify all API endpoints.
-
-### Exporting Test Data
-
-The `export-test-data` command pulls sample data from a production ClickHouse instance to populate test fixtures:
-
-```bash
-# Export from default (localhost:8123, mainnet database)
-make export-test-data
-
-# Export from custom ClickHouse instance
-make export-test-data \
-  TESTDATA_EXPORT_HOST=https://clickhouse.prod.example.com \
-  TESTDATA_EXPORT_DATABASE=mainnet
-```
-
-**How it works:**
-1. Auto-detects all tables exposed in `openapi.yaml` (e.g., `fct_block`, `fct_attestation_*`)
-2. Exports 2 rows from each table using `SELECT * FROM {table} FINAL LIMIT 2`
-3. Saves as JSON to `internal/integrationtest/testdata/{table}.json`
-
-**When to use:**
-- After adding new API endpoints (new fact tables)
-- When test data becomes stale or outdated
-- When adding new fields to existing tables
-
-**Requirements:**
-- Access to a ClickHouse instance with CBT data
-- Tables must exist and contain data
-- Must have `openapi.yaml` generated (`make generate` first)
 
 ## Using with Different CBT Projects
 
