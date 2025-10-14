@@ -1,4 +1,4 @@
-.PHONY: help install-tools proto generate build run clean fmt lint test unit-test integration-test
+.PHONY: help install-tools proto generate build build-binary run clean fmt lint test unit-test integration-test
 
 # Colors for output (use printf for cross-platform compatibility)
 CYAN := \033[0;36m
@@ -45,15 +45,17 @@ help: ## Show this help message
 	@printf "\n"
 	@printf "$(GREEN)Main workflow:$(RESET)\n"
 	@printf "  $(CYAN)make install-tools$(RESET)  # One-time setup: install required dependencies\n"
-	@printf "  $(CYAN)make generate$(RESET)       # Generate OpenAPI spec and server code\n"
-	@printf "  $(CYAN)make build$(RESET)          # Build the API server binary\n"
+	@printf "  $(CYAN)make proto$(RESET)          # Generate Protocol Buffers from ClickHouse schema\n"
+	@printf "  $(CYAN)make generate$(RESET)       # Generate OpenAPI spec and server code from protos\n"
+	@printf "  $(CYAN)make build$(RESET)          # Generate all code + build server binary (proto + generate + binary)\n"
+	@printf "  $(CYAN)make build-binary$(RESET)   # Build the API server binary only (no code generation)\n"
 	@printf "  $(CYAN)make run$(RESET)            # Run the API server\n"
 	@printf "\n"
 	@printf "$(GREEN)Development:$(RESET)\n"
 	@printf "  $(CYAN)make clean$(RESET)          # Remove generated files and build artifacts\n"
 	@printf "  $(CYAN)make fmt$(RESET)            # Format Go code\n"
 	@printf "  $(CYAN)make lint$(RESET)           # Run linters\n"
-	@printf "  $(CYAN)make test$(RESET)           # Run all tests (unit + integration)\n"
+	@printf "  $(CYAN)make test$(RESET)           # Run all tests (always cleans + regenerates from test schema)\n"
 	@printf "\n"
 	@printf "$(GREEN)Testing:$(RESET)\n"
 	@printf "  $(CYAN)make unit-test$(RESET)      # Run unit tests only\n"
@@ -141,26 +143,33 @@ LDFLAGS := -s -w \
 	-X github.com/ethpandaops/xatu-cbt-api/internal/version.Release=$(VERSION)-$(GIT_COMMIT)$(DIRTY_SUFFIX) \
 	-X github.com/ethpandaops/xatu-cbt-api/internal/version.GitCommit=$(GIT_COMMIT)
 
-# Build the API server binary
-build:
+# Build everything: generate all code + build binary (useful for CI)
+build: proto generate build-binary
+	@printf "$(GREEN)✓ Build complete$(RESET)\n"
+
+# Build the API server binary only
+build-binary:
 	@printf "$(CYAN)==> Building API server...$(RESET)\n"
 	@printf "$(CYAN)    Version: $(VERSION)-$(GIT_COMMIT)$(DIRTY_SUFFIX)$(RESET)\n"
 	@go build -ldflags "$(LDFLAGS)" -o bin/server ./cmd/server
 	@printf "$(GREEN)✓ Server built: bin/server$(RESET)\n"
 
 # Run the API server
-run: build
+run: build-binary
 	@printf "$(CYAN)==> Starting API server...$(RESET)\n"
 	@./bin/server
 
 # Internal targets (not meant to be called directly)
 .discover-tables:
 	@printf "$(CYAN)==> Discovering tables from ClickHouse...$(RESET)\n"
-	@PREFIX_CONDITIONS=$$(echo "$(DISCOVERY_PREFIXES)" | tr ',' '\n' | sed "s/^/name LIKE '/; s/$$/_%%'/" | paste -sd'|' - | sed 's/|/ OR /g'); \
-	EXCLUDE_CONDITIONS=$$(echo "$(DISCOVERY_EXCLUDE)" | tr ',' '\n' | sed "s/^/name NOT LIKE '/; s/$$/'/" | paste -sd'&' - | sed 's/&/ AND /g'); \
-	QUERY="SELECT arrayStringConcat(groupArray(name), ',') FROM system.tables WHERE database = '$(CLICKHOUSE_DB)' AND ($$PREFIX_CONDITIONS)"; \
+	@CH_DSN=$$(yq eval '.clickhouse.dsn' $(CONFIG_FILE)); \
+	CH_DB=$$(yq eval '.clickhouse.database' $(CONFIG_FILE)); \
+	DISCOVERY_PREFIXES=$$(yq eval '.clickhouse.discovery.prefixes | join(",")' $(CONFIG_FILE)); \
+	DISCOVERY_EXCLUDE=$$(yq eval '(.clickhouse.discovery.exclude // []) | join(",")' $(CONFIG_FILE)); \
+	PREFIX_CONDITIONS=$$(echo "$$DISCOVERY_PREFIXES" | tr ',' '\n' | sed "s/^/name LIKE '/; s/$$/_%%'/" | paste -sd'|' - | sed 's/|/ OR /g'); \
+	EXCLUDE_CONDITIONS=$$(echo "$$DISCOVERY_EXCLUDE" | tr ',' '\n' | sed "s/^/name NOT LIKE '/; s/$$/'/" | paste -sd'&' - | sed 's/&/ AND /g'); \
+	QUERY="SELECT arrayStringConcat(groupArray(name), ',') FROM system.tables WHERE database = '$$CH_DB' AND ($$PREFIX_CONDITIONS)"; \
 	if [ -n "$$EXCLUDE_CONDITIONS" ]; then QUERY="$$QUERY AND ($$EXCLUDE_CONDITIONS)"; fi; \
-	CH_DSN="$(CLICKHOUSE_DSN)"; \
 	CH_PROTO=$$(echo "$$CH_DSN" | sed 's|^\([^:]*\)://.*|\1|'); \
 	CH_HOST=$$(echo "$$CH_DSN" | sed 's|.*://[^@]*@\([^:/]*\).*|\1|'); \
 	CH_PORT=$$(echo "$$CH_DSN" | sed -n 's|.*://[^@]*@[^:]*:\([0-9][0-9]*\)[^0-9].*|\1|p'); \
@@ -175,7 +184,7 @@ run: build
 	else \
 		CH_URL="http://$$CH_HOST:8123"; \
 	fi; \
-	TABLES=$$(curl -fsSL "$$CH_URL/?database=$(CLICKHOUSE_DB)" \
+	TABLES=$$(curl -fsSL "$$CH_URL/?database=$$CH_DB" \
 	  --user "$$CH_USER:$$CH_PASS" \
 	  --data-binary "$$QUERY FORMAT TSVRaw" 2>&1); \
 	CURL_EXIT=$$?; \
@@ -190,7 +199,15 @@ run: build
 .proto: .discover-tables
 	@printf "$(CYAN)==> Generating Protocol Buffers from ClickHouse...$(RESET)\n"
 	@TABLES=$$(cat .tables.txt); \
-	NATIVE_DSN="$(CLICKHOUSE_DSN)/$(CLICKHOUSE_DB)"; \
+	CH_DSN=$$(yq eval '.clickhouse.dsn' $(CONFIG_FILE)); \
+	CH_DB=$$(yq eval '.clickhouse.database' $(CONFIG_FILE)); \
+	PROTO_OUT=$$(yq eval '.proto.output_dir' $(CONFIG_FILE)); \
+	PROTO_PKG=$$(yq eval '.proto.package' $(CONFIG_FILE)); \
+	PROTO_GO_PKG=$$(yq eval '.proto.go_package' $(CONFIG_FILE)); \
+	PROTO_COMMENTS=$$(yq eval '.proto.include_comments' $(CONFIG_FILE)); \
+	API_BASE=$$(yq eval '.api.base_path' $(CONFIG_FILE)); \
+	API_PREFIXES=$$(yq eval '.api.expose_prefixes | join(",")' $(CONFIG_FILE)); \
+	NATIVE_DSN="$$CH_DSN/$$CH_DB"; \
 	if echo "$$NATIVE_DSN" | grep -q "^https://"; then \
 		NATIVE_DSN="$$NATIVE_DSN?secure=true"; \
 	fi; \
@@ -199,33 +216,35 @@ run: build
 		NATIVE_DSN=$$(echo "$$NATIVE_DSN" | sed 's|localhost|clickhouse|g' | sed 's|127\.0\.0\.1|clickhouse|g'); \
 		NETWORK_FLAG="--network examples_default"; \
 	fi; \
-	docker pull ethpandaops/clickhouse-proto-gen:latest
+	docker pull ethpandaops/clickhouse-proto-gen:latest; \
 	docker run --rm -v "$$(pwd):/workspace" \
 	  --user "$$(id -u):$$(id -g)" \
 	  $$NETWORK_FLAG \
 	  ethpandaops/clickhouse-proto-gen \
 	  --dsn "$$NATIVE_DSN" \
 	  --tables "$$TABLES" \
-	  --out /workspace/$(PROTO_OUTPUT) \
-	  --package $(PROTO_PACKAGE) \
-	  --go-package $(PROTO_GO_PACKAGE) \
-	  --include-comments=$(PROTO_INCLUDE_COMMENTS) \
+	  --out /workspace/$$PROTO_OUT \
+	  --package $$PROTO_PKG \
+	  --go-package $$PROTO_GO_PKG \
+	  --include-comments=$$PROTO_COMMENTS \
 	  --enable-api \
-	  --api-table-prefixes $(API_EXPOSE_PREFIXES) \
-	  --api-base-path $(API_BASE_PATH) \
+	  --api-table-prefixes $$API_PREFIXES \
+	  --api-base-path $$API_BASE \
 	  --verbose \
 	  --debug
 	@printf "$(CYAN)==> Compiling proto files to Go...$(RESET)\n"
-	@GOOGLEAPIS_PATH=$$(go list -m -f '{{.Dir}}' github.com/googleapis/googleapis); \
+	@PROTO_OUT=$$(yq eval '.proto.output_dir' $(CONFIG_FILE)); \
+	GOOGLEAPIS_PATH=$$(go list -m -f '{{.Dir}}' github.com/googleapis/googleapis); \
 	protoc \
-		--go_out=$(PROTO_OUTPUT) \
+		--go_out=$$PROTO_OUT \
 		--go_opt=paths=source_relative \
-		--proto_path=$(PROTO_OUTPUT) \
+		--proto_path=$$PROTO_OUT \
 		--proto_path=$$GOOGLEAPIS_PATH \
-		$(PROTO_OUTPUT)/*.proto \
-		$(PROTO_OUTPUT)/clickhouse/*.proto
+		$$PROTO_OUT/*.proto \
+		$$PROTO_OUT/clickhouse/*.proto
 	@touch .proto
-	@printf "$(GREEN)✓ Proto files generated and compiled in $(PROTO_OUTPUT)$(RESET)\n"
+	@PROTO_OUT=$$(yq eval '.proto.output_dir' $(CONFIG_FILE)); \
+	printf "$(GREEN)✓ Proto files generated and compiled in $$PROTO_OUT$(RESET)\n"
 
 .build-tools:
 	@printf "$(CYAN)==> Building code generation tools...$(RESET)\n"
@@ -361,17 +380,6 @@ lint:
 	@printf "%s\n" "  host: \"0.0.0.0\"" >> config.test.yaml
 	@printf "$(GREEN)✓ Test config created$(RESET)\n"
 
-# Internal: Ensure proto files exist (generates from example schema if missing)
-.ensure-protos:
-	@if [ ! -f "internal/server/openapi.yaml" ]; then \
-		printf "$(YELLOW)⚠️  Generated files missing. Generating from test schema...$(RESET)\n"; \
-		$(MAKE) .start-test-clickhouse; \
-		$(MAKE) .create-test-config; \
-		printf "$(CYAN)==> Generating protos with test config...$(RESET)\n"; \
-		$(MAKE) proto generate CONFIG_FILE=config.test.yaml; \
-		printf "$(GREEN)✓ Proto generation complete$(RESET)\n"; \
-	fi
-
 # Internal: Clean up test environment (ClickHouse + test config)
 .cleanup-test-env:
 	@printf "$(CYAN)==> Cleaning up test environment...$(RESET)\n"
@@ -379,8 +387,16 @@ lint:
 	@rm -f config.test.yaml
 	@printf "$(GREEN)✓ Test environment cleaned$(RESET)\n"
 
-# Run all tests (unit + integration)
-test: .ensure-protos unit-test integration-test .cleanup-test-env
+# Run all tests (always cleans and regenerates from test schema)
+test: clean
+	@printf "$(CYAN)==> Setting up test environment...$(RESET)\n"
+	@$(MAKE) .start-test-clickhouse
+	@$(MAKE) .create-test-config
+	@printf "$(CYAN)==> Generating code from test schema...$(RESET)\n"
+	@$(MAKE) proto generate CONFIG_FILE=config.test.yaml
+	@printf "$(CYAN)==> Running tests...$(RESET)\n"
+	@$(MAKE) unit-test integration-test
+	@$(MAKE) .cleanup-test-env
 	@printf "$(GREEN)✓ All tests passed$(RESET)\n"
 
 # Run unit tests only
@@ -391,7 +407,7 @@ unit-test:
 		printf "$(GREEN)✓ Unit tests passed$(RESET)\n"
 
 # Run integration tests (requires ClickHouse to be running with seeded data)
-integration-test: build
+integration-test: build-binary
 	@printf "$(CYAN)==> Running integration tests...$(RESET)\n"
 	@if [ ! -f "config.test.yaml" ]; then \
 		printf "$(YELLOW)⚠️  config.test.yaml not found, creating it...$(RESET)\n"; \
