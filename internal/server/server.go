@@ -99,6 +99,7 @@ func serveScalarDocs(w http.ResponseWriter, _ *http.Request) {
     <script
         id="api-reference"
         data-url="/openapi.yaml"></script>
+    <script>
         var configuration = {
             spec: {
                 url: '/openapi.yaml',
