@@ -27,12 +27,14 @@ func main() {
 
 	// 0. Load config to get api.base_path (optional - falls back to flag default)
 	apiBasePath := *basePath
+
 	if _, err := os.Stat(*configFile); err == nil {
 		cfg, err := config.Load(*configFile)
 		if err != nil {
 			fmt.Printf("Error loading config: %v\n", err)
 			os.Exit(1)
 		}
+
 		apiBasePath = cfg.API.BasePath
 	}
 
