@@ -35,8 +35,8 @@ OUTPUT_FILE := ./openapi.yaml
 PREPROCESS_TOOL := ./cmd/tools/openapi-preprocess
 POSTPROCESS_TOOL := ./cmd/tools/openapi-postprocess
 
-# Get googleapis path
-GOOGLEAPIS_PATH := $(shell go list -m -f '{{.Dir}}' github.com/googleapis/googleapis 2>/dev/null || echo "")
+# Vendored googleapis path
+GOOGLEAPIS_DIR := ./third_party/googleapis
 
 .DEFAULT_GOAL := help
 
@@ -120,9 +120,21 @@ install-tools:
 	@go install github.com/kollalabs/protoc-gen-openapi@latest
 	@go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
 	@go get github.com/getkin/kin-openapi/openapi3@latest
-	@go get github.com/googleapis/googleapis@latest
 	@go get gopkg.in/yaml.v3@latest
 	@printf "$(GREEN)✓ Tools installed$(RESET)\n"
+
+# Download googleapis proto files (one-time, vendored locally)
+.download-googleapis:
+	@if [ ! -d "$(GOOGLEAPIS_DIR)" ]; then \
+		printf "$(CYAN)==> Downloading googleapis protos...$(RESET)\n"; \
+		mkdir -p third_party; \
+		git clone --depth 1 --filter=blob:none --sparse \
+			https://github.com/googleapis/googleapis.git $(GOOGLEAPIS_DIR); \
+		cd $(GOOGLEAPIS_DIR) && git sparse-checkout set google/api; \
+		printf "$(GREEN)✓ Downloaded googleapis to $(GOOGLEAPIS_DIR)$(RESET)\n"; \
+	else \
+		printf "$(GREEN)✓ googleapis already downloaded$(RESET)\n"; \
+	fi
 
 # Generate all code (OpenAPI spec + server implementation)
 generate: .build-tools .openapi .generate-descriptors .generate-server
@@ -196,7 +208,7 @@ run: build-binary
 	echo $$TABLES > .tables.txt; \
 	printf "$(GREEN)✓ Discovered tables: $$TABLES$(RESET)\n"
 
-.proto: .discover-tables
+.proto: .discover-tables .download-googleapis
 	@printf "$(CYAN)==> Generating Protocol Buffers from ClickHouse...$(RESET)\n"
 	@TABLES=$$(cat .tables.txt); \
 	CH_DSN=$$(yq eval '.clickhouse.dsn' $(CONFIG_FILE)); \
@@ -234,12 +246,11 @@ run: build-binary
 	  --debug
 	@printf "$(CYAN)==> Compiling proto files to Go...$(RESET)\n"
 	@PROTO_OUT=$$(yq eval '.proto.output_dir' $(CONFIG_FILE)); \
-	GOOGLEAPIS_PATH=$$(go list -m -f '{{.Dir}}' github.com/googleapis/googleapis); \
 	protoc \
 		--go_out=$$PROTO_OUT \
 		--go_opt=paths=source_relative \
 		--proto_path=$$PROTO_OUT \
-		--proto_path=$$GOOGLEAPIS_PATH \
+		--proto_path=$(GOOGLEAPIS_DIR) \
 		$$PROTO_OUT/*.proto \
 		$$PROTO_OUT/clickhouse/*.proto
 	@PROTO_OUT=$$(yq eval '.proto.output_dir' $(CONFIG_FILE)); \
@@ -250,19 +261,14 @@ run: build-binary
 	@go build -o bin/openapi-preprocess $(PREPROCESS_TOOL)
 	@printf "$(GREEN)✓ Built: bin/openapi-preprocess$(RESET)\n"
 
-.openapi: .build-tools .generate-descriptors
+.openapi: .build-tools .generate-descriptors .download-googleapis
 	@printf "$(CYAN)==> Generating OpenAPI 3.0 from annotated protos...$(RESET)\n"
 	@mkdir -p $(TMP_DIR)
-	@if [ -z "$(GOOGLEAPIS_PATH)" ]; then \
-		printf "$(RED)Error: googleapis not found. Installing...$(RESET)\n"; \
-		go get github.com/googleapis/googleapis@latest; \
-	fi
-	@GOOGLEAPIS_PATH=$$(go list -m -f '{{.Dir}}' github.com/googleapis/googleapis); \
-	protoc \
+	@protoc \
 		--openapi_out=$(TMP_DIR) \
 		--openapi_opt=naming=proto \
 		--proto_path=$(PROTO_PATH) \
-		--proto_path=$$GOOGLEAPIS_PATH \
+		--proto_path=$(GOOGLEAPIS_DIR) \
 		$(PROTO_PATH)/*.proto
 	@printf "$(GREEN)✓ OpenAPI spec generated: $(OUTPUT_FILE)$(RESET)\n"
 	@printf "$(CYAN)==> Pre-processing OpenAPI spec...$(RESET)\n"
@@ -273,14 +279,13 @@ run: build-binary
 		--descriptor .descriptors.pb
 	@printf "$(GREEN)✓ Pre-processed spec generated: $(OUTPUT_FILE)$(RESET)\n"
 
-.generate-descriptors:
+.generate-descriptors: .download-googleapis
 	@printf "$(CYAN)==> Generating protobuf descriptors...$(RESET)\n"
-	@GOOGLEAPIS_PATH=$$(go list -m -f '{{.Dir}}' github.com/googleapis/googleapis); \
-	protoc \
+	@protoc \
 		--descriptor_set_out=.descriptors.pb \
 		--include_imports \
 		--proto_path=$(PROTO_OUTPUT) \
-		--proto_path=$$GOOGLEAPIS_PATH \
+		--proto_path=$(GOOGLEAPIS_DIR) \
 		$(PROTO_OUTPUT)/*.proto \
 		$(PROTO_OUTPUT)/clickhouse/*.proto
 	@printf "$(GREEN)✓ Protobuf descriptors generated: .descriptors.pb$(RESET)\n"

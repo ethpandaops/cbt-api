@@ -18,6 +18,9 @@ coverage.html
 # Dependency directories
 vendor/
 
+# Third-party proto files
+third_party/
+
 # Go workspace file
 go.work
 
