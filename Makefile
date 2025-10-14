@@ -380,6 +380,15 @@ lint:
 	@printf "%s\n" "  host: \"0.0.0.0\"" >> config.test.yaml
 	@printf "$(GREEN)✓ Test config created$(RESET)\n"
 
+# Internal: Setup for linting (generates code from test schema)
+# Used by CI linting to generate files without requiring production ClickHouse
+.lint-setup:
+	@printf "$(CYAN)==> Generating code from test schema for linting...$(RESET)\n"
+	@$(MAKE) .start-test-clickhouse
+	@$(MAKE) .create-test-config
+	@$(MAKE) proto generate CONFIG_FILE=config.test.yaml
+	@printf "$(GREEN)✓ Lint setup complete$(RESET)\n"
+
 # Internal: Clean up test environment (ClickHouse + test config)
 .cleanup-test-env:
 	@printf "$(CYAN)==> Cleaning up test environment...$(RESET)\n"
