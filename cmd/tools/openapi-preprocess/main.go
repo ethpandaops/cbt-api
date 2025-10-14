@@ -16,6 +16,8 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"gopkg.in/yaml.v3"
+
+	"github.com/ethpandaops/cbt-api/internal/version"
 )
 
 // ============================================================================
@@ -99,6 +101,7 @@ func main() {
 	excludePatterns, err := loadAPIExcludePatterns(*configFile)
 	if err != nil {
 		fmt.Printf("Warning: Could not load API exclude patterns: %v\n", err)
+
 		excludePatterns = []string{}
 	}
 
@@ -131,6 +134,9 @@ func main() {
 	// Apply transformations
 	_ = applyTransformations(doc, descriptions, fieldTypes, annotations, excludePatterns)
 
+	// Ensure proper OpenAPI metadata
+	ensureOpenAPIMetadata(doc)
+
 	// Write output
 	if err := writeOpenAPIYAML(doc, *output); err != nil {
 		fmt.Printf("Error writing output: %v\n", err)
@@ -146,10 +152,10 @@ func main() {
 
 // TransformationStats tracks what was changed.
 type TransformationStats struct {
-	FiltersFlatted  int
-	SchemasFixed    int
-	TypesFixed      int
-	PathsExcluded   int
+	FiltersFlatted int
+	SchemasFixed   int
+	TypesFixed     int
+	PathsExcluded  int
 }
 
 // applyTransformations applies all OpenAPI transformations.
@@ -933,23 +939,80 @@ func convertParamToFieldName(paramName string) string {
 	return paramName
 }
 
-// writeOpenAPIYAML writes OpenAPI document to YAML file.
+// ensureOpenAPIMetadata ensures the OpenAPI spec has proper title and description.
+func ensureOpenAPIMetadata(doc *openapi3.T) {
+	if doc.Info == nil {
+		doc.Info = &openapi3.Info{}
+	}
+
+	// Set title if empty
+	if doc.Info.Title == "" {
+		doc.Info.Title = "CBT API"
+	}
+
+	// Set description if empty
+	if doc.Info.Description == "" {
+		doc.Info.Description = "REST API for querying analytical data tables powered by ClickHouse"
+	}
+
+	// Set version from internal/version package
+	if doc.Info.Version == "" || doc.Info.Version == "0.0.1" {
+		doc.Info.Version = version.Short()
+	}
+}
+
+// writeOpenAPIYAML writes OpenAPI document to YAML file with correct field ordering.
 func writeOpenAPIYAML(doc *openapi3.T, filename string) error {
-	// Marshal to JSON first
+	// Marshal to JSON first (openapi3 library ensures correct order)
 	data, err := doc.MarshalJSON()
 	if err != nil {
 		return fmt.Errorf("marshal to JSON: %w", err)
 	}
 
 	// Convert to generic map
-	var jsonData interface{}
+	var jsonData map[string]interface{}
 
 	if unmarshalErr := json.Unmarshal(data, &jsonData); unmarshalErr != nil {
 		return fmt.Errorf("unmarshal JSON: %w", unmarshalErr)
 	}
 
+	// Create ordered map to ensure openapi, info, paths, components order
+	orderedData := make(map[string]interface{})
+
+	// Add fields in correct order
+	if v, ok := jsonData["openapi"]; ok {
+		orderedData["openapi"] = v
+	}
+
+	if v, ok := jsonData["info"]; ok {
+		orderedData["info"] = v
+	}
+
+	if v, ok := jsonData["servers"]; ok {
+		orderedData["servers"] = v
+	}
+
+	if v, ok := jsonData["paths"]; ok {
+		orderedData["paths"] = v
+	}
+
+	if v, ok := jsonData["components"]; ok {
+		orderedData["components"] = v
+	}
+
+	if v, ok := jsonData["tags"]; ok {
+		orderedData["tags"] = v
+	}
+
+	// Add any remaining fields
+	for k, v := range jsonData {
+		if _, exists := orderedData[k]; !exists {
+			orderedData[k] = v
+		}
+	}
+
 	// Marshal to YAML
-	yamlData, err := yaml.Marshal(jsonData)
+	yamlData, err := yaml.Marshal(orderedData)
 	if err != nil {
 		return fmt.Errorf("marshal to YAML: %w", err)
 	}
@@ -1024,8 +1087,8 @@ func filterExcludedPaths(doc *openapi3.T, excludePatterns []string) int {
 }
 
 // extractTableNameFromPath extracts the table name from an OpenAPI path.
-// e.g., "/api/v1/fct_block" -> "fct_block"
-// e.g., "/api/v1/fct_block/{slot}" -> "fct_block"
+// e.g., "/api/v1/fct_block" -> "fct_block".
+// e.g., "/api/v1/fct_block/{slot}" -> "fct_block".
 func extractTableNameFromPath(path string) string {
 	// Remove leading slash
 	path = strings.TrimPrefix(path, "/")
@@ -1072,19 +1135,21 @@ func filterExcludedTags(doc *openapi3.T, excludePatterns []string) {
 
 	for _, tag := range doc.Tags {
 		// Extract table name from tag name
-		// e.g., "FctAddressAccessChunked10000LocalService" -> "fct_address_access_chunked_10000_local"
 		tableName := extractTableNameFromServiceTag(tag.Name)
 		if tableName == "" {
 			// Keep tags we can't parse
 			filteredTags = append(filteredTags, tag)
+
 			continue
 		}
 
 		// Check if matches any exclude pattern
 		excluded := false
+
 		for _, pattern := range excludePatterns {
 			if matchesPattern(tableName, pattern) {
 				excluded = true
+
 				break
 			}
 		}
@@ -1098,7 +1163,6 @@ func filterExcludedTags(doc *openapi3.T, excludePatterns []string) {
 }
 
 // extractTableNameFromServiceTag converts a service tag name to table name.
-// e.g., "FctAddressAccessChunked10000LocalService" -> "fct_address_access_chunked_10000_local"
 func extractTableNameFromServiceTag(tagName string) string {
 	// Remove "Service" suffix
 	tagName = strings.TrimSuffix(tagName, "Service")

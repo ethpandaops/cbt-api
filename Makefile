@@ -258,7 +258,7 @@ run: build-binary
 
 .build-tools:
 	@printf "$(CYAN)==> Building code generation tools...$(RESET)\n"
-	@go build -o bin/openapi-preprocess $(PREPROCESS_TOOL)
+	@go build -ldflags "$(LDFLAGS)" -o bin/openapi-preprocess $(PREPROCESS_TOOL)
 	@printf "$(GREEN)✓ Built: bin/openapi-preprocess$(RESET)\n"
 
 .openapi: .build-tools .generate-descriptors .download-googleapis
@@ -272,7 +272,7 @@ run: build-binary
 		$(PROTO_PATH)/*.proto
 	@printf "$(GREEN)✓ OpenAPI spec generated: $(OUTPUT_FILE)$(RESET)\n"
 	@printf "$(CYAN)==> Pre-processing OpenAPI spec...$(RESET)\n"
-	@go run $(PREPROCESS_TOOL) \
+	@./bin/openapi-preprocess \
 		--input $(TMP_DIR)/openapi.yaml \
 		--output $(OUTPUT_FILE) \
 		--proto-path $(PROTO_PATH) \
