@@ -199,6 +199,7 @@ run: build
 		NATIVE_DSN=$$(echo "$$NATIVE_DSN" | sed 's|localhost|clickhouse|g' | sed 's|127\.0\.0\.1|clickhouse|g'); \
 		NETWORK_FLAG="--network examples_default"; \
 	fi; \
+	docker pull ethpandaops/clickhouse-proto-gen:latest
 	docker run --rm -v "$$(pwd):/workspace" \
 	  --user "$$(id -u):$$(id -g)" \
 	  $$NETWORK_FLAG \
