@@ -242,7 +242,6 @@ run: build-binary
 		--proto_path=$$GOOGLEAPIS_PATH \
 		$$PROTO_OUT/*.proto \
 		$$PROTO_OUT/clickhouse/*.proto
-	@touch .proto
 	@PROTO_OUT=$$(yq eval '.proto.output_dir' $(CONFIG_FILE)); \
 	printf "$(GREEN)✓ Proto files generated and compiled in $$PROTO_OUT$(RESET)\n"
 
@@ -310,7 +309,6 @@ clean:
 	@rm -f $(OUTPUT_FILE)
 	@rm -f .descriptors.pb
 	@rm -f .tables.txt
-	@rm -f .proto
 	@rm -rf bin/
 	@rm -f internal/handlers/generated.go
 	@rm -f internal/server/implementation.go
