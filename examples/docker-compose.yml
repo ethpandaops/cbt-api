@@ -1,7 +1,7 @@
 services:
   clickhouse:
     image: clickhouse/clickhouse-server:24.3-alpine
-    container_name: xatu-cbt-api-clickhouse
+    container_name: cbt-api-clickhouse
     ports:
       - "9000:9000"
       - "8123:8123"

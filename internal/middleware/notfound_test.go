@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	apierrors "github.com/ethpandaops/xatu-cbt-api/internal/errors"
+	apierrors "github.com/ethpandaops/cbt-api/internal/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"

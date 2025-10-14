@@ -12,7 +12,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	oteltrace "go.opentelemetry.io/otel/trace"
 
-	"github.com/ethpandaops/xatu-cbt-api/internal/database"
+	"github.com/ethpandaops/cbt-api/internal/database"
 )
 
 // TracedClient wraps database.Client with OpenTelemetry instrumentation.
@@ -30,7 +30,7 @@ var _ database.DatabaseClient = (*TracedClient)(nil)
 func NewTracedClient(client *database.Client, dbName string, logger logrus.FieldLogger) *TracedClient {
 	return &TracedClient{
 		client: client,
-		tracer: otel.Tracer("github.com/ethpandaops/xatu-cbt-api/database"),
+		tracer: otel.Tracer("github.com/ethpandaops/cbt-api/database"),
 		dbName: dbName,
 		log:    logger,
 	}

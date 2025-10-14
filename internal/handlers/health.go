@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/ethpandaops/xatu-cbt-api/internal/version"
+	"github.com/ethpandaops/cbt-api/internal/version"
 )
 
 // HealthResponse represents the health check response.

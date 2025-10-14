@@ -15,8 +15,8 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/ethpandaops/xatu-cbt-api/internal/config"
-	"github.com/ethpandaops/xatu-cbt-api/internal/version"
+	"github.com/ethpandaops/cbt-api/internal/config"
+	"github.com/ethpandaops/cbt-api/internal/version"
 )
 
 // Service defines the telemetry service interface.

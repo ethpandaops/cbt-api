@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethpandaops/xatu-cbt-api/internal/config"
+	"github.com/ethpandaops/cbt-api/internal/config"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

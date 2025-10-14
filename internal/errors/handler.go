@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/ethpandaops/xatu-cbt-api/internal/handlers"
+	"github.com/ethpandaops/cbt-api/internal/handlers"
 	"github.com/sirupsen/logrus"
 )
 

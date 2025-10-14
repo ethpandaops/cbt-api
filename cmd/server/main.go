@@ -11,10 +11,10 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/ethpandaops/xatu-cbt-api/internal/config"
-	"github.com/ethpandaops/xatu-cbt-api/internal/server"
-	"github.com/ethpandaops/xatu-cbt-api/internal/telemetry"
-	"github.com/ethpandaops/xatu-cbt-api/internal/version"
+	"github.com/ethpandaops/cbt-api/internal/config"
+	"github.com/ethpandaops/cbt-api/internal/server"
+	"github.com/ethpandaops/cbt-api/internal/telemetry"
+	"github.com/ethpandaops/cbt-api/internal/version"
 )
 
 func main() {

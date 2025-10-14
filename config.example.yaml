@@ -29,7 +29,7 @@ clickhouse:
 proto:
   output_dir: "./pkg/proto/clickhouse"
   package: "cbt.v1"
-  go_package: "github.com/ethpandaops/xatu-cbt-api/pkg/proto/clickhouse"
+  go_package: "github.com/ethpandaops/cbt-api/pkg/proto/clickhouse"
   include_comments: true
 
 api:
