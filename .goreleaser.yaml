@@ -58,6 +58,8 @@ dockers:
       - oapi-codegen.yaml
       - cmd
       - internal
+      - pkg
+      - config.yaml
       - config.example.yaml
     image_templates:
       - "ethpandaops/{{ .ProjectName }}:{{ .Version }}-amd64"
@@ -81,6 +83,8 @@ dockers:
       - oapi-codegen.yaml
       - cmd
       - internal
+      - pkg
+      - config.yaml
       - config.example.yaml
     image_templates:
       - "ethpandaops/{{ .ProjectName }}:{{ .Version }}-arm64v8"
