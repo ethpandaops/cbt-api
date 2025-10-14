@@ -46,7 +46,7 @@ func generateListEndpoint(ep Endpoint, protoInfo *ProtoInfo) string {
 // %s %s
 func (s *Server) %s(w http.ResponseWriter, r *http.Request, params handlers.%s) {
 	ctx := r.Context()
-	tracer := otel.Tracer("xatu-cbt-api/handlers")
+	tracer := otel.Tracer("cbt-api/handlers")
 
 	// Create span for handler execution
 	ctx, span := tracer.Start(ctx, "handler.%s",
@@ -166,7 +166,7 @@ func generateGetEndpoint(ep Endpoint, protoInfo *ProtoInfo) string {
 // %s %s
 func (s *Server) %s(w http.ResponseWriter, r *http.Request, %s %s) {
 	ctx := r.Context()
-	tracer := otel.Tracer("xatu-cbt-api/handlers")
+	tracer := otel.Tracer("cbt-api/handlers")
 
 	// Create span for handler execution
 	ctx, span := tracer.Start(ctx, "handler.%s",

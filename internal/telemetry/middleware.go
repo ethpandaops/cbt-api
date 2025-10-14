@@ -16,7 +16,7 @@ import (
 func HTTPMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		// Use otelhttp.NewHandler with custom options
-		handler := otelhttp.NewHandler(next, "xatu-cbt-api",
+		handler := otelhttp.NewHandler(next, "cbt-api",
 			otelhttp.WithTracerProvider(otel.GetTracerProvider()),
 			otelhttp.WithSpanNameFormatter(spanNameFormatter),
 			otelhttp.WithSpanOptions(oteltrace.WithSpanKind(oteltrace.SpanKindServer)),
@@ -81,7 +81,7 @@ func spanNameFormatter(operation string, r *http.Request) string {
 	return "HTTP " + r.Method + " " + r.URL.Path
 }
 
-// addCustomHTTPAttributes adds xatu-cbt-api specific attributes.
+// addCustomHTTPAttributes adds cbt-api specific attributes.
 func addCustomHTTPAttributes(span oteltrace.Span, r *http.Request) {
 	// Add query parameters as attribute (truncated if too long)
 	queryParams := r.URL.RawQuery

@@ -84,7 +84,7 @@ var (
 func main() {
 	input := flag.String("input", "", "Input OpenAPI YAML")
 	output := flag.String("output", "", "Output OpenAPI YAML")
-	protoPath := flag.String("proto-path", ".xatu-cbt/pkg/proto/clickhouse", "Path to proto files")
+	protoPath := flag.String("proto-path", "pkg/proto/clickhouse", "Path to proto files")
 	descriptorPath := flag.String("descriptor", ".descriptors.pb", "Path to proto descriptor file")
 	flag.Parse()
 

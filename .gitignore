@@ -42,7 +42,6 @@ tmp/
 pkg/
 openapi.yaml
 openapi.json
-.xatu-cbt/
 internal/handlers/generated.go
 internal/server/implementation.go
 internal/server/openapi.yaml

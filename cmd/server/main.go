@@ -35,7 +35,7 @@ func main() {
 	logger.WithFields(logrus.Fields{
 		"version":  version.Short(),
 		"platform": version.FullWithPlatform(),
-	}).Info("Starting xatu-cbt-api")
+	}).Info("Starting cbt-api")
 
 	// Load config
 	cfg, err := config.Load(*configFile)

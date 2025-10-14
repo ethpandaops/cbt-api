@@ -18,7 +18,7 @@ const (
 func main() {
 	// Parse flags
 	openapiPath := flag.String("openapi", "openapi.yaml", "Path to OpenAPI spec")
-	protoPath := flag.String("proto-path", ".xatu-cbt/pkg/proto/clickhouse",
+	protoPath := flag.String("proto-path", "pkg/proto/clickhouse",
 		"Path to proto files")
 	output := flag.String("output", "internal/server/implementation.go", "Output file")
 	configFile := flag.String("config", "config.yaml", "Path to configuration file")

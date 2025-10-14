@@ -80,7 +80,7 @@ type TelemetryConfig struct {
 	Headers  map[string]string `mapstructure:"headers"`  // Auth headers (e.g., Authorization: Bearer <token>)
 
 	// Service identification
-	ServiceName    string `mapstructure:"service_name"`    // e.g., "xatu-cbt-api"
+	ServiceName    string `mapstructure:"service_name"`    // e.g., "cbt-api"
 	ServiceVersion string `mapstructure:"service_version"` // e.g., "1.0.0"
 	Environment    string `mapstructure:"environment"`     // e.g., "mainnet", "sepolia"
 
@@ -130,7 +130,7 @@ func Load(configFile string) (*Config, error) {
 
 	// Telemetry defaults
 	viper.SetDefault("telemetry.enabled", false)
-	viper.SetDefault("telemetry.service_name", "xatu-cbt-api")
+	viper.SetDefault("telemetry.service_name", "cbt-api")
 	viper.SetDefault("telemetry.service_version", "unknown")
 	viper.SetDefault("telemetry.environment", "unknown")
 	viper.SetDefault("telemetry.sample_rate", 0.1)

@@ -11,7 +11,7 @@ var (
 	// GitCommit is the git commit hash (set via ldflags).
 	GitCommit = "dev"
 	// Implementation is the name of the implementation.
-	Implementation = "xatu-cbt-api"
+	Implementation = "cbt-api"
 	// GOOS is the operating system.
 	GOOS = runtime.GOOS
 	// GOARCH is the architecture.

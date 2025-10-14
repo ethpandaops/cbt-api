@@ -21,7 +21,7 @@ var (
 	DBOperationKey = attribute.Key("db.operation.name")
 )
 
-// Custom attribute keys specific to xatu-cbt-api.
+// Custom attribute keys specific to cbt-api.
 const (
 	// Query parameter attributes.
 	AttrQueryParams      = attribute.Key("http.query_params")
