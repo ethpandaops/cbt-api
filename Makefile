@@ -179,7 +179,7 @@ run: build-binary
 	DISCOVERY_PREFIXES=$$(yq eval '.clickhouse.discovery.prefixes | join(",")' $(CONFIG_FILE)); \
 	DISCOVERY_EXCLUDE=$$(yq eval '(.clickhouse.discovery.exclude // []) | join(",")' $(CONFIG_FILE)); \
 	PREFIX_CONDITIONS=$$(echo "$$DISCOVERY_PREFIXES" | tr ',' '\n' | sed "s/^/name LIKE '/; s/$$/_%%'/" | paste -sd'|' - | sed 's/|/ OR /g'); \
-	EXCLUDE_CONDITIONS=$$(echo "$$DISCOVERY_EXCLUDE" | tr ',' '\n' | sed "s/^/name NOT LIKE '/; s/$$/'/" | paste -sd'&' - | sed 's/&/ AND /g'); \
+	EXCLUDE_CONDITIONS=$$(echo "$$DISCOVERY_EXCLUDE" | tr ',' '\n' | sed "s/\*/%%/g; s/^/name NOT LIKE '/; s/$$/'/" | paste -sd'&' - | sed 's/&/ AND /g'); \
 	QUERY="SELECT arrayStringConcat(groupArray(name), ',') FROM system.tables WHERE database = '$$CH_DB' AND ($$PREFIX_CONDITIONS)"; \
 	if [ -n "$$EXCLUDE_CONDITIONS" ]; then QUERY="$$QUERY AND ($$EXCLUDE_CONDITIONS)"; fi; \
 	CH_PROTO=$$(echo "$$CH_DSN" | sed 's|^\([^:]*\)://.*|\1|'); \
@@ -276,7 +276,8 @@ run: build-binary
 		--input $(TMP_DIR)/openapi.yaml \
 		--output $(OUTPUT_FILE) \
 		--proto-path $(PROTO_PATH) \
-		--descriptor .descriptors.pb
+		--descriptor .descriptors.pb \
+		--config $(CONFIG_FILE)
 	@printf "$(GREEN)✓ Pre-processed spec generated: $(OUTPUT_FILE)$(RESET)\n"
 
 .generate-descriptors: .download-googleapis

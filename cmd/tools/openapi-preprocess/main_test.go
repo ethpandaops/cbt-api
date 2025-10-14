@@ -899,12 +899,15 @@ func TestApplyTransformations(t *testing.T) {
 
 	annotations := ProtoFieldAnnotations{}
 
-	stats := applyTransformations(doc, descriptions, fieldTypes, annotations)
+	excludePatterns := []string{} // No exclusions for this test
+
+	stats := applyTransformations(doc, descriptions, fieldTypes, annotations, excludePatterns)
 
 	// Verify stats
 	assert.Equal(t, 1, stats.FiltersFlatted, "expected 1 parameter to be flattened")
 	assert.Equal(t, 1, stats.SchemasFixed, "expected 1 schema to be fixed")
 	assert.Equal(t, 1, stats.TypesFixed, "expected 1 type to be fixed")
+	assert.Equal(t, 0, stats.PathsExcluded, "expected 0 paths to be excluded")
 
 	// Verify parameter was renamed
 	param := doc.Paths.Map()["/api/v1/test"].Get.Parameters[0].Value

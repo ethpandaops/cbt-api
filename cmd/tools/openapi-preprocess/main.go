@@ -86,12 +86,20 @@ func main() {
 	output := flag.String("output", "", "Output OpenAPI YAML")
 	protoPath := flag.String("proto-path", "pkg/proto/clickhouse", "Path to proto files")
 	descriptorPath := flag.String("descriptor", ".descriptors.pb", "Path to proto descriptor file")
+	configFile := flag.String("config", "config.yaml", "Path to config file")
 	flag.Parse()
 
 	if *input == "" || *output == "" {
 		fmt.Println("Error: --input and --output are required")
 		flag.Usage()
 		os.Exit(1)
+	}
+
+	// Load API exclude patterns from config
+	excludePatterns, err := loadAPIExcludePatterns(*configFile)
+	if err != nil {
+		fmt.Printf("Warning: Could not load API exclude patterns: %v\n", err)
+		excludePatterns = []string{}
 	}
 
 	// Load proto data
@@ -121,7 +129,7 @@ func main() {
 	}
 
 	// Apply transformations
-	_ = applyTransformations(doc, descriptions, fieldTypes, annotations)
+	_ = applyTransformations(doc, descriptions, fieldTypes, annotations, excludePatterns)
 
 	// Write output
 	if err := writeOpenAPIYAML(doc, *output); err != nil {
@@ -138,13 +146,14 @@ func main() {
 
 // TransformationStats tracks what was changed.
 type TransformationStats struct {
-	FiltersFlatted int
-	SchemasFixed   int
-	TypesFixed     int
+	FiltersFlatted  int
+	SchemasFixed    int
+	TypesFixed      int
+	PathsExcluded   int
 }
 
 // applyTransformations applies all OpenAPI transformations.
-func applyTransformations(doc *openapi3.T, descriptions ProtoDescriptions, fieldTypes ProtoFieldTypes, annotations ProtoFieldAnnotations) TransformationStats {
+func applyTransformations(doc *openapi3.T, descriptions ProtoDescriptions, fieldTypes ProtoFieldTypes, annotations ProtoFieldAnnotations, excludePatterns []string) TransformationStats {
 	stats := TransformationStats{}
 
 	// 1. Flatten filter parameters (dot notation -> underscore notation)
@@ -158,6 +167,10 @@ func applyTransformations(doc *openapi3.T, descriptions ProtoDescriptions, field
 
 	// 4. Add custom annotations as OpenAPI extensions
 	addAnnotationExtensions(doc, annotations)
+
+	// 5. Filter out excluded paths and tags
+	stats.PathsExcluded = filterExcludedPaths(doc, excludePatterns)
+	filterExcludedTags(doc, excludePatterns)
 
 	return stats
 }
@@ -947,4 +960,149 @@ func writeOpenAPIYAML(doc *openapi3.T, filename string) error {
 	}
 
 	return nil
+}
+
+// ============================================================================
+// Path Filtering
+// ============================================================================
+
+// loadAPIExcludePatterns loads API exclude patterns from config file.
+func loadAPIExcludePatterns(configFile string) ([]string, error) {
+	data, err := os.ReadFile(configFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	var config struct {
+		API struct {
+			Exclude []string `yaml:"exclude"`
+		} `yaml:"api"`
+	}
+
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+
+	return config.API.Exclude, nil
+}
+
+// filterExcludedPaths removes paths from the OpenAPI spec that match exclude patterns.
+// Patterns support shell-style wildcards (* matches any characters).
+func filterExcludedPaths(doc *openapi3.T, excludePatterns []string) int {
+	if len(excludePatterns) == 0 {
+		return 0
+	}
+
+	excluded := 0
+	pathsToRemove := make([]string, 0)
+
+	// Find paths to remove
+	for path := range doc.Paths.Map() {
+		// Extract table name from path (e.g., "/api/v1/fct_block" -> "fct_block")
+		tableName := extractTableNameFromPath(path)
+		if tableName == "" {
+			continue
+		}
+
+		// Check if table name matches any exclude pattern
+		for _, pattern := range excludePatterns {
+			if matchesPattern(tableName, pattern) {
+				pathsToRemove = append(pathsToRemove, path)
+				excluded++
+
+				break
+			}
+		}
+	}
+
+	// Remove paths
+	for _, path := range pathsToRemove {
+		doc.Paths.Delete(path)
+	}
+
+	return excluded
+}
+
+// extractTableNameFromPath extracts the table name from an OpenAPI path.
+// e.g., "/api/v1/fct_block" -> "fct_block"
+// e.g., "/api/v1/fct_block/{slot}" -> "fct_block"
+func extractTableNameFromPath(path string) string {
+	// Remove leading slash
+	path = strings.TrimPrefix(path, "/")
+
+	// Split by slash
+	parts := strings.Split(path, "/")
+	if len(parts) < 3 {
+		return ""
+	}
+
+	// Return the table name part (third segment after /api/v1/)
+	return parts[2]
+}
+
+// matchesPattern checks if a string matches a shell-style wildcard pattern.
+// Supports * (matches any characters).
+func matchesPattern(s, pattern string) bool {
+	// Convert shell-style pattern to regex
+	// Escape regex special characters except *
+	regexPattern := regexp.QuoteMeta(pattern)
+
+	// Replace escaped \* with regex .*
+	regexPattern = strings.ReplaceAll(regexPattern, `\*`, ".*")
+
+	// Anchor the pattern
+	regexPattern = "^" + regexPattern + "$"
+
+	matched, err := regexp.MatchString(regexPattern, s)
+	if err != nil {
+		return false
+	}
+
+	return matched
+}
+
+// filterExcludedTags removes tags from the OpenAPI spec that match exclude patterns.
+// Tags represent the service groupings shown in Swagger UI.
+func filterExcludedTags(doc *openapi3.T, excludePatterns []string) {
+	if len(excludePatterns) == 0 || doc.Tags == nil {
+		return
+	}
+
+	filteredTags := make(openapi3.Tags, 0, len(doc.Tags))
+
+	for _, tag := range doc.Tags {
+		// Extract table name from tag name
+		// e.g., "FctAddressAccessChunked10000LocalService" -> "fct_address_access_chunked_10000_local"
+		tableName := extractTableNameFromServiceTag(tag.Name)
+		if tableName == "" {
+			// Keep tags we can't parse
+			filteredTags = append(filteredTags, tag)
+			continue
+		}
+
+		// Check if matches any exclude pattern
+		excluded := false
+		for _, pattern := range excludePatterns {
+			if matchesPattern(tableName, pattern) {
+				excluded = true
+				break
+			}
+		}
+
+		if !excluded {
+			filteredTags = append(filteredTags, tag)
+		}
+	}
+
+	doc.Tags = filteredTags
+}
+
+// extractTableNameFromServiceTag converts a service tag name to table name.
+// e.g., "FctAddressAccessChunked10000LocalService" -> "fct_address_access_chunked_10000_local"
+func extractTableNameFromServiceTag(tagName string) string {
+	// Remove "Service" suffix
+	tagName = strings.TrimSuffix(tagName, "Service")
+
+	// Convert PascalCase to snake_case
+	return camelToSnake(tagName)
 }

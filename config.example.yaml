@@ -37,6 +37,9 @@ api:
   # Only tables with these prefixes will be exposed via REST API
   expose_prefixes:
     - fct
+  # Exclude tables matching these patterns from API exposure
+  exclude:
+    - "*_local"
 
 telemetry:
   enabled: false

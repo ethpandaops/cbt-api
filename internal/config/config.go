@@ -28,6 +28,7 @@ type ProtoConfig struct {
 type APIConfig struct {
 	BasePath       string   `mapstructure:"base_path"`
 	ExposePrefixes []string `mapstructure:"expose_prefixes"`
+	Exclude        []string `mapstructure:"exclude"`
 }
 
 // ServerConfig holds server-specific configuration.

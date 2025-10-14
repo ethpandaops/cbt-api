@@ -56,6 +56,8 @@ jobs:
             discovery:
               prefixes:
                 - fct
+              exclude:
+                - "*_local"  # Exclude all local tables
 
           proto:
             output_dir: "./pkg/proto/clickhouse"
@@ -67,6 +69,8 @@ jobs:
             base_path: "/api/v1"
             expose_prefixes:
               - fct
+            exclude:
+              - "*_local"
           EOF
       - name: Install tools, generate code and build
         run: |
