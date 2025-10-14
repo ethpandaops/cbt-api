@@ -202,7 +202,7 @@ run: build
 	docker run --rm -v "$$(pwd):/workspace" \
 	  --user "$$(id -u):$$(id -g)" \
 	  $$NETWORK_FLAG \
-	  clickhouse-proto-gen:dev \
+	  ethpandaops/clickhouse-proto-gen \
 	  --dsn "$$NATIVE_DSN" \
 	  --tables "$$TABLES" \
 	  --out /workspace/$(PROTO_OUTPUT) \
