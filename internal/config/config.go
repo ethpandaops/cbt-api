@@ -94,9 +94,8 @@ type TelemetryConfig struct {
 }
 
 // Load loads configuration from file and environment variables.
-func Load() (*Config, error) {
-	viper.SetConfigName("config")
-	viper.AddConfigPath(".")
+func Load(configFile string) (*Config, error) {
+	viper.SetConfigFile(configFile)
 	viper.SetEnvPrefix("XATU_CBT_API")
 	viper.AutomaticEnv()
 

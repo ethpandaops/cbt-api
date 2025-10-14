@@ -21,17 +21,25 @@ func main() {
 	protoPath := flag.String("proto-path", ".xatu-cbt/pkg/proto/clickhouse",
 		"Path to proto files")
 	output := flag.String("output", "internal/server/implementation.go", "Output file")
+	configFile := flag.String("config", "config.yaml", "Path to configuration file")
+	basePath := flag.String("base-path", "/api/v1", "API base path (defaults to /api/v1, overridden by config if present)")
 	flag.Parse()
 
-	// 0. Load config to get api.base_path
-	cfg, err := config.Load()
-	if err != nil {
-		fmt.Printf("Error loading config: %v\n", err)
-		os.Exit(1)
+	// 0. Load config to get api.base_path (optional - falls back to flag default)
+	apiBasePath := *basePath
+
+	if _, err := os.Stat(*configFile); err == nil {
+		cfg, err := config.Load(*configFile)
+		if err != nil {
+			fmt.Printf("Error loading config: %v\n", err)
+			os.Exit(1)
+		}
+
+		apiBasePath = cfg.API.BasePath
 	}
 
 	// 1. Load OpenAPI spec
-	spec, err := loadOpenAPI(cfg.API.BasePath, *openapiPath)
+	spec, err := loadOpenAPI(apiBasePath, *openapiPath)
 	if err != nil {
 		fmt.Printf("Error loading OpenAPI: %v\n", err)
 		os.Exit(1)

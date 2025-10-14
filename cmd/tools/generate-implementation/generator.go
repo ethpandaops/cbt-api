@@ -233,6 +233,14 @@ func (g *CodeGenerator) generateFieldMapping(fieldName string, fieldType string,
 `, fieldName, fieldName)
 	}
 
+	// Check if field is a map - maps are assigned directly (no &)
+	// Proto: map[string]string → OpenAPI: map[string]string (after fixMapPointers)
+	// Maps are reference types in Go, taking their address creates double pointers
+	if fieldType == "object" {
+		return fmt.Sprintf(`	result.%s = p.%s
+`, fieldName, fieldName)
+	}
+
 	// Non-nullable fields need address taken
 	// Proto: uint32 → OpenAPI: *uint32 (oapi-codegen generates all fields as pointers with omitempty)
 	return fmt.Sprintf(`	result.%s = &p.%s
