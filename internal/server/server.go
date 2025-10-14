@@ -98,37 +98,32 @@ func serveScalarDocs(w http.ResponseWriter, _ *http.Request) {
 <body>
     <script
         id="api-reference"
-        data-url="/openapi.yaml"></script>
-    <script>
-        var configuration = {
-            spec: {
-                url: '/openapi.yaml',
-            },
-            layout: 'modern',
-            theme: 'kepler',
-            hideClientButton: true,
-            proxyUrl: 'https://proxy.scalar.com',
-            showSidebar: true,
-            showToolbar: 'localhost',
-            operationTitleSource: 'summary',
-            persistAuth: false,
-            telemetry: true,
-            isEditable: false,
-            isLoading: false,
-            hideModels: false,
-            documentDownloadType: 'both',
-            hideTestRequestButton: false,
-            hideSearch: false,
-            showOperationId: false,
-            hideDarkModeToggle: true,
-            withDefaultFonts: true,
-            defaultOpenAllTags: false,
-            expandAllModelSections: false,
-            expandAllResponses: false,
-            orderSchemaPropertiesBy: 'alpha',
-            orderRequiredPropertiesFirst: true,
-        }
-    </script>
+        type="application/json"
+        data-configuration='{
+            "url": "/openapi.yaml",
+            "theme": "kepler",
+            "hideClientButton": true,
+            "hideDarkModeToggle": false,
+            "showSidebar": true,
+            "showToolbar": "localhost",
+            "operationTitleSource": "summary",
+            "persistAuth": false,
+            "telemetry": true,
+            "layout": "modern",
+            "isEditable": false,
+            "isLoading": false,
+            "hideModels": false,
+            "documentDownloadType": "both",
+            "hideTestRequestButton": false,
+            "hideSearch": false,
+            "showOperationId": false,
+            "withDefaultFonts": true,
+            "defaultOpenAllTags": false,
+            "expandAllModelSections": false,
+            "expandAllResponses": false,
+            "orderSchemaPropertiesBy": "alpha",
+            "orderRequiredPropertiesFirst": true
+        }'></script>
     <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
 </body>
 </html>`
