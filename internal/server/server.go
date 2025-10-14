@@ -9,12 +9,12 @@ import (
 	"github.com/sirupsen/logrus"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 
-	"github.com/ethpandaops/xatu-cbt-api/internal/config"
-	"github.com/ethpandaops/xatu-cbt-api/internal/database"
-	apierrors "github.com/ethpandaops/xatu-cbt-api/internal/errors"
-	"github.com/ethpandaops/xatu-cbt-api/internal/handlers"
-	"github.com/ethpandaops/xatu-cbt-api/internal/middleware"
-	"github.com/ethpandaops/xatu-cbt-api/internal/telemetry"
+	"github.com/ethpandaops/cbt-api/internal/config"
+	"github.com/ethpandaops/cbt-api/internal/database"
+	apierrors "github.com/ethpandaops/cbt-api/internal/errors"
+	"github.com/ethpandaops/cbt-api/internal/handlers"
+	"github.com/ethpandaops/cbt-api/internal/middleware"
+	"github.com/ethpandaops/cbt-api/internal/telemetry"
 )
 
 //go:embed openapi.yaml

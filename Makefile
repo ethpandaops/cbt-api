@@ -41,7 +41,7 @@ GOOGLEAPIS_PATH := $(shell go list -m -f '{{.Dir}}' github.com/googleapis/google
 .DEFAULT_GOAL := help
 
 help: ## Show this help message
-	@printf "$(CYAN)xatu-cbt-api Makefile$(RESET)\n"
+	@printf "$(CYAN)cbt-api Makefile$(RESET)\n"
 	@printf "\n"
 	@printf "$(GREEN)Main workflow:$(RESET)\n"
 	@printf "  $(CYAN)make install-tools$(RESET)  # One-time setup: install required dependencies\n"
@@ -140,8 +140,8 @@ DIRTY_SUFFIX := $(shell git diff --quiet || echo "-dirty")
 
 # Build ldflags
 LDFLAGS := -s -w \
-	-X github.com/ethpandaops/xatu-cbt-api/internal/version.Release=$(VERSION)-$(GIT_COMMIT)$(DIRTY_SUFFIX) \
-	-X github.com/ethpandaops/xatu-cbt-api/internal/version.GitCommit=$(GIT_COMMIT)
+	-X github.com/ethpandaops/cbt-api/internal/version.Release=$(VERSION)-$(GIT_COMMIT)$(DIRTY_SUFFIX) \
+	-X github.com/ethpandaops/cbt-api/internal/version.GitCommit=$(GIT_COMMIT)
 
 # Build everything: generate all code + build binary (useful for CI)
 build: proto generate build-binary
@@ -313,7 +313,7 @@ clean:
 	@rm -f internal/handlers/generated.go
 	@rm -f internal/server/implementation.go
 	@rm -f internal/server/openapi.yaml
-	@rm -f /tmp/xatu-cbt-api-test.log /tmp/xatu-cbt-api-test.pid config.test.yaml
+	@rm -f /tmp/cbt-api-test.log /tmp/cbt-api-test.pid config.test.yaml
 	@printf "$(GREEN)✓ Cleaned$(RESET)\n"
 
 # Format Go code
@@ -337,10 +337,10 @@ lint:
 	@docker compose -f examples/docker-compose.yml down -v 2>/dev/null || true
 	@docker compose -f examples/docker-compose.yml up -d
 	@printf "$(CYAN)==> Waiting for ClickHouse to be healthy...$(RESET)\n"
-	@timeout 60 bash -c 'until [ "$$(docker inspect -f {{.State.Health.Status}} xatu-cbt-api-clickhouse 2>/dev/null)" = "healthy" ]; do sleep 1; done'
+	@timeout 60 bash -c 'until [ "$$(docker inspect -f {{.State.Health.Status}} cbt-api-clickhouse 2>/dev/null)" = "healthy" ]; do sleep 1; done'
 	@printf "$(CYAN)==> Removing network restriction...$(RESET)\n"
-	@docker exec xatu-cbt-api-clickhouse rm -f /etc/clickhouse-server/users.d/default-user.xml
-	@docker exec xatu-cbt-api-clickhouse clickhouse-client --query "SYSTEM RELOAD CONFIG"
+	@docker exec cbt-api-clickhouse rm -f /etc/clickhouse-server/users.d/default-user.xml
+	@docker exec cbt-api-clickhouse clickhouse-client --query "SYSTEM RELOAD CONFIG"
 	@sleep 2
 	@printf "$(CYAN)==> Loading example schema...$(RESET)\n"
 	@for table_file in examples/table_*.sql; do \
@@ -365,7 +365,7 @@ lint:
 	@printf "%s\n" "proto:" >> config.test.yaml
 	@printf "%s\n" "  output_dir: \"./pkg/proto/clickhouse\"" >> config.test.yaml
 	@printf "%s\n" "  package: \"cbt.v1\"" >> config.test.yaml
-	@printf "%s\n" "  go_package: \"github.com/ethpandaops/xatu-cbt-api/pkg/proto/clickhouse\"" >> config.test.yaml
+	@printf "%s\n" "  go_package: \"github.com/ethpandaops/cbt-api/pkg/proto/clickhouse\"" >> config.test.yaml
 	@printf "%s\n" "  include_comments: true" >> config.test.yaml
 	@printf "%s\n" "" >> config.test.yaml
 	@printf "%s\n" "api:" >> config.test.yaml
@@ -421,9 +421,9 @@ integration-test: build-binary
 		$(MAKE) .create-test-config; \
 	fi
 	@printf "$(CYAN)==> Starting API server in background...$(RESET)\n"
-	@./bin/server --config config.test.yaml > /tmp/xatu-cbt-api-test.log 2>&1 & \
+	@./bin/server --config config.test.yaml > /tmp/cbt-api-test.log 2>&1 & \
 	SERVER_PID=$$!; \
-	echo $$SERVER_PID > /tmp/xatu-cbt-api-test.pid; \
+	echo $$SERVER_PID > /tmp/cbt-api-test.pid; \
 	printf "$(CYAN)==> Waiting for server to be ready (PID: $$SERVER_PID)...$(RESET)\n"; \
 	MAX_RETRIES=30; \
 	RETRY=0; \
@@ -435,9 +435,9 @@ integration-test: build-binary
 		RETRY=$$((RETRY + 1)); \
 		if [ $$RETRY -eq $$MAX_RETRIES ]; then \
 			printf "$(RED)✗ Server failed to start within timeout$(RESET)\n"; \
-			cat /tmp/xatu-cbt-api-test.log; \
+			cat /tmp/cbt-api-test.log; \
 			kill $$SERVER_PID 2>/dev/null || true; \
-			rm -f /tmp/xatu-cbt-api-test.pid; \
+			rm -f /tmp/cbt-api-test.pid; \
 			exit 1; \
 		fi; \
 		sleep 1; \
@@ -458,10 +458,10 @@ integration-test: build-binary
 	done; \
 	printf "$(CYAN)==> Stopping API server...$(RESET)\n"; \
 	kill $$SERVER_PID 2>/dev/null || true; \
-	rm -f /tmp/xatu-cbt-api-test.pid; \
+	rm -f /tmp/cbt-api-test.pid; \
 	if [ $$FAILED -eq 1 ]; then \
 		printf "$(RED)✗ Integration tests failed$(RESET)\n"; \
-		cat /tmp/xatu-cbt-api-test.log; \
+		cat /tmp/cbt-api-test.log; \
 		exit 1; \
 	fi; \
 	printf "$(GREEN)✓ Integration tests passed$(RESET)\n"

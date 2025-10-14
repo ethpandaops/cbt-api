@@ -1,6 +1,6 @@
 version: 2
 
-project_name: xatu-cbt-api
+project_name: cbt-api
 
 before:
   hooks:
@@ -17,8 +17,8 @@ builds:
     - amd64
     ldflags:
       - -s -w
-      - -X github.com/ethpandaops/xatu-cbt-api/internal/version.Release={{.Tag}}-{{.ShortCommit}}
-      - -X github.com/ethpandaops/xatu-cbt-api/internal/version.GitCommit={{.ShortCommit}}
+      - -X github.com/ethpandaops/cbt-api/internal/version.Release={{.Tag}}-{{.ShortCommit}}
+      - -X github.com/ethpandaops/cbt-api/internal/version.GitCommit={{.ShortCommit}}
     mod_timestamp: "{{ .CommitTimestamp }}"
 
   - id: linux-arm64
@@ -32,8 +32,8 @@ builds:
     - arm64
     ldflags:
       - -s -w
-      - -X github.com/ethpandaops/xatu-cbt-api/internal/version.Release={{.Tag}}-{{.ShortCommit}}
-      - -X github.com/ethpandaops/xatu-cbt-api/internal/version.GitCommit={{.ShortCommit}}
+      - -X github.com/ethpandaops/cbt-api/internal/version.Release={{.Tag}}-{{.ShortCommit}}
+      - -X github.com/ethpandaops/cbt-api/internal/version.GitCommit={{.ShortCommit}}
     mod_timestamp: "{{ .CommitTimestamp }}"
 checksum:
   name_template: 'checksums.txt'

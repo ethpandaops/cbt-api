@@ -121,7 +121,7 @@ func Load(configFile string) (*Config, error) {
 	// Proto defaults
 	viper.SetDefault("proto.output_dir", "./pkg/proto/clickhouse")
 	viper.SetDefault("proto.package", "cbt.v1")
-	viper.SetDefault("proto.go_package", "github.com/ethpandaops/xatu-cbt-api/pkg/proto/clickhouse")
+	viper.SetDefault("proto.go_package", "github.com/ethpandaops/cbt-api/pkg/proto/clickhouse")
 	viper.SetDefault("proto.include_comments", true)
 
 	// API defaults

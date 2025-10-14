@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	apierrors "github.com/ethpandaops/xatu-cbt-api/internal/errors"
+	apierrors "github.com/ethpandaops/cbt-api/internal/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

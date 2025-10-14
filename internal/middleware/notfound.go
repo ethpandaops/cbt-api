@@ -3,7 +3,7 @@ package middleware
 import (
 	"net/http"
 
-	apierrors "github.com/ethpandaops/xatu-cbt-api/internal/errors"
+	apierrors "github.com/ethpandaops/cbt-api/internal/errors"
 )
 
 // NotFoundHandler returns a middleware that converts 404 responses to Status format.

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ethpandaops/xatu-cbt-api/internal/config"
+	"github.com/ethpandaops/cbt-api/internal/config"
 )
 
 const (

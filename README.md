@@ -1,10 +1,10 @@
-# xatu-cbt-api
+# cbt-api
 
 Generates OpenAPI spec and server implementation for ClickHouse-based REST APIs using CBT (ClickHouse Build Tool).
 
 ## Overview
 
-xatu-cbt-api is a **generic REST API generator** for any ClickHouse database managed with [CBT](https://github.com/ethpandaops/cbt). It automatically:
+cbt-api is a **generic REST API generator** for any ClickHouse database managed with [CBT](https://github.com/ethpandaops/cbt). It automatically:
 - Discovers tables from your ClickHouse database
 - Generates Protocol Buffer definitions from table schemas
 - Creates a complete OpenAPI 3.0 specification
@@ -89,7 +89,7 @@ clickhouse:
 proto:
   output_dir: "./pkg/proto/clickhouse"
   package: "cbt.v1"
-  go_package: "github.com/ethpandaops/xatu-cbt-api/pkg/proto/clickhouse"
+  go_package: "github.com/ethpandaops/cbt-api/pkg/proto/clickhouse"
   include_comments: true
 ```
 

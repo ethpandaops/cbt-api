@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	apierrors "github.com/ethpandaops/xatu-cbt-api/internal/errors"
-	"github.com/ethpandaops/xatu-cbt-api/internal/handlers"
+	apierrors "github.com/ethpandaops/cbt-api/internal/errors"
+	"github.com/ethpandaops/cbt-api/internal/handlers"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/sirupsen/logrus"
 )
