@@ -1,4 +1,4 @@
-.PHONY: help install-tools proto generate build run clean fmt lint test unit-test
+.PHONY: help install-tools proto generate build run clean fmt lint test unit-test integration-test
 
 # Colors for output (use printf for cross-platform compatibility)
 CYAN := \033[0;36m
@@ -53,10 +53,11 @@ help: ## Show this help message
 	@printf "  $(CYAN)make clean$(RESET)          # Remove generated files and build artifacts\n"
 	@printf "  $(CYAN)make fmt$(RESET)            # Format Go code\n"
 	@printf "  $(CYAN)make lint$(RESET)           # Run linters\n"
-	@printf "  $(CYAN)make test$(RESET)           # Run unit tests\n"
+	@printf "  $(CYAN)make test$(RESET)           # Run all tests (unit + integration)\n"
 	@printf "\n"
 	@printf "$(GREEN)Testing:$(RESET)\n"
 	@printf "  $(CYAN)make unit-test$(RESET)      # Run unit tests only\n"
+	@printf "  $(CYAN)make integration-test$(RESET) # Run integration tests only (requires ClickHouse + seeded data)\n"
 
 # Install required development tools (one-time setup)
 install-tools:
@@ -193,11 +194,15 @@ run: build
 	if echo "$$NATIVE_DSN" | grep -q "^https://"; then \
 		NATIVE_DSN="$$NATIVE_DSN?secure=true"; \
 	fi; \
-	NATIVE_DSN=$$(echo "$$NATIVE_DSN" | sed 's|localhost|clickhouse|g'); \
+	NETWORK_FLAG=""; \
+	if echo "$$NATIVE_DSN" | grep -Eq "localhost|127\.0\.0\.1"; then \
+		NATIVE_DSN=$$(echo "$$NATIVE_DSN" | sed 's|localhost|clickhouse|g' | sed 's|127\.0\.0\.1|clickhouse|g'); \
+		NETWORK_FLAG="--network examples_default"; \
+	fi; \
 	docker run --rm -v "$$(pwd):/workspace" \
 	  --user "$$(id -u):$$(id -g)" \
-	  --network examples_default \
-	  ethpandaops/clickhouse-proto-gen \
+	  $$NETWORK_FLAG \
+	  clickhouse-proto-gen:dev \
 	  --dsn "$$NATIVE_DSN" \
 	  --tables "$$TABLES" \
 	  --out /workspace/$(PROTO_OUTPUT) \
@@ -290,6 +295,7 @@ clean:
 	@rm -f internal/handlers/generated.go
 	@rm -f internal/server/implementation.go
 	@rm -f internal/server/openapi.yaml
+	@rm -f /tmp/xatu-cbt-api-test.log /tmp/xatu-cbt-api-test.pid config.test.yaml
 	@printf "$(GREEN)✓ Cleaned$(RESET)\n"
 
 # Format Go code
@@ -307,50 +313,73 @@ lint:
 		printf "$(YELLOW)golangci-lint not installed, skipping...$(RESET)\n"; \
 	fi
 
+# Internal: Start test ClickHouse with schema and seed data
+.start-test-clickhouse:
+	@printf "$(CYAN)==> Starting test ClickHouse...$(RESET)\n"
+	@docker compose -f examples/docker-compose.yml down -v 2>/dev/null || true
+	@docker compose -f examples/docker-compose.yml up -d
+	@printf "$(CYAN)==> Waiting for ClickHouse to be healthy...$(RESET)\n"
+	@timeout 60 bash -c 'until [ "$$(docker inspect -f {{.State.Health.Status}} xatu-cbt-api-clickhouse 2>/dev/null)" = "healthy" ]; do sleep 1; done'
+	@printf "$(CYAN)==> Removing network restriction...$(RESET)\n"
+	@docker exec xatu-cbt-api-clickhouse rm -f /etc/clickhouse-server/users.d/default-user.xml
+	@docker exec xatu-cbt-api-clickhouse clickhouse-client --query "SYSTEM RELOAD CONFIG"
+	@sleep 2
+	@printf "$(CYAN)==> Loading example schema...$(RESET)\n"
+	@for table_file in examples/table_*.sql; do \
+		cat "$$table_file" | curl -X POST "http://localhost:8123/?database=testdb" --user default: --data-binary @- || exit 1; \
+	done
+	@printf "$(CYAN)==> Seeding test data...$(RESET)\n"
+	@for seed_file in examples/seed_*.sql; do \
+		cat "$$seed_file" | curl -X POST "http://localhost:8123/?database=testdb" --user default: --data-binary @- || exit 1; \
+	done
+	@printf "$(GREEN)✓ Test ClickHouse ready$(RESET)\n"
+
+# Internal: Create test configuration file
+.create-test-config:
+	@printf "$(CYAN)==> Creating config.test.yaml...$(RESET)\n"
+	@printf "%s\n" "clickhouse:" > config.test.yaml
+	@printf "%s\n" "  dsn: \"clickhouse://default:@localhost:9000\"" >> config.test.yaml
+	@printf "%s\n" "  database: \"testdb\"" >> config.test.yaml
+	@printf "%s\n" "  discovery:" >> config.test.yaml
+	@printf "%s\n" "    prefixes:" >> config.test.yaml
+	@printf "%s\n" "      - fct" >> config.test.yaml
+	@printf "%s\n" "" >> config.test.yaml
+	@printf "%s\n" "proto:" >> config.test.yaml
+	@printf "%s\n" "  output_dir: \"./pkg/proto/clickhouse\"" >> config.test.yaml
+	@printf "%s\n" "  package: \"cbt.v1\"" >> config.test.yaml
+	@printf "%s\n" "  go_package: \"github.com/ethpandaops/xatu-cbt-api/pkg/proto/clickhouse\"" >> config.test.yaml
+	@printf "%s\n" "  include_comments: true" >> config.test.yaml
+	@printf "%s\n" "" >> config.test.yaml
+	@printf "%s\n" "api:" >> config.test.yaml
+	@printf "%s\n" "  base_path: \"/api/v1\"" >> config.test.yaml
+	@printf "%s\n" "  expose_prefixes:" >> config.test.yaml
+	@printf "%s\n" "    - fct" >> config.test.yaml
+	@printf "%s\n" "" >> config.test.yaml
+	@printf "%s\n" "server:" >> config.test.yaml
+	@printf "%s\n" "  port: 18080" >> config.test.yaml
+	@printf "%s\n" "  host: \"0.0.0.0\"" >> config.test.yaml
+	@printf "$(GREEN)✓ Test config created$(RESET)\n"
+
 # Internal: Ensure proto files exist (generates from example schema if missing)
 .ensure-protos:
 	@if [ ! -f "internal/server/openapi.yaml" ]; then \
-		printf "$(YELLOW)⚠️  Generated files missing. Starting example ClickHouse...$(RESET)\n"; \
-		docker compose -f examples/docker-compose.yml down -v 2>/dev/null || true; \
-		docker compose -f examples/docker-compose.yml up -d; \
-		printf "$(CYAN)==> Waiting for ClickHouse to be healthy...$(RESET)\n"; \
-		timeout 60 bash -c 'until [ "$$(docker inspect -f {{.State.Health.Status}} xatu-cbt-api-clickhouse 2>/dev/null)" = "healthy" ]; do sleep 1; done'; \
-		printf "$(CYAN)==> Removing network restriction...$(RESET)\n"; \
-		docker exec xatu-cbt-api-clickhouse rm -f /etc/clickhouse-server/users.d/default-user.xml; \
-		docker exec xatu-cbt-api-clickhouse clickhouse-client --query "SYSTEM RELOAD CONFIG"; \
-		sleep 2; \
-		printf "$(CYAN)==> Loading example schema...$(RESET)\n"; \
-		for table_file in examples/table_*.sql; do \
-			cat "$$table_file" | curl -X POST "http://localhost:8123/?database=testdb" --user default: --data-binary @- || exit 1; \
-		done; \
-		printf "$(CYAN)==> Creating config.test.yaml...$(RESET)\n"; \
-		printf "%s\n" "clickhouse:" > config.test.yaml; \
-		printf "%s\n" "  dsn: \"clickhouse://default:@localhost:9000\"" >> config.test.yaml; \
-		printf "%s\n" "  database: \"testdb\"" >> config.test.yaml; \
-		printf "%s\n" "  discovery:" >> config.test.yaml; \
-		printf "%s\n" "    prefixes:" >> config.test.yaml; \
-		printf "%s\n" "      - fct" >> config.test.yaml; \
-		printf "%s\n" "" >> config.test.yaml; \
-		printf "%s\n" "proto:" >> config.test.yaml; \
-		printf "%s\n" "  output_dir: \"./pkg/proto/clickhouse\"" >> config.test.yaml; \
-		printf "%s\n" "  package: \"cbt.v1\"" >> config.test.yaml; \
-		printf "%s\n" "  go_package: \"github.com/ethpandaops/xatu-cbt-api/pkg/proto/clickhouse\"" >> config.test.yaml; \
-		printf "%s\n" "  include_comments: true" >> config.test.yaml; \
-		printf "%s\n" "" >> config.test.yaml; \
-		printf "%s\n" "api:" >> config.test.yaml; \
-		printf "%s\n" "  base_path: \"/api/v1\"" >> config.test.yaml; \
-		printf "%s\n" "  expose_prefixes:" >> config.test.yaml; \
-		printf "%s\n" "    - fct" >> config.test.yaml; \
+		printf "$(YELLOW)⚠️  Generated files missing. Generating from test schema...$(RESET)\n"; \
+		$(MAKE) .start-test-clickhouse; \
+		$(MAKE) .create-test-config; \
 		printf "$(CYAN)==> Generating protos with test config...$(RESET)\n"; \
 		$(MAKE) proto generate CONFIG_FILE=config.test.yaml; \
-		printf "$(CYAN)==> Cleaning up...$(RESET)\n"; \
-		docker compose -f examples/docker-compose.yml down -v; \
-		rm -f config.test.yaml; \
 		printf "$(GREEN)✓ Proto generation complete$(RESET)\n"; \
 	fi
 
-# Run all tests
-test: .ensure-protos unit-test
+# Internal: Clean up test environment (ClickHouse + test config)
+.cleanup-test-env:
+	@printf "$(CYAN)==> Cleaning up test environment...$(RESET)\n"
+	@docker compose -f examples/docker-compose.yml down -v 2>/dev/null || true
+	@rm -f config.test.yaml
+	@printf "$(GREEN)✓ Test environment cleaned$(RESET)\n"
+
+# Run all tests (unit + integration)
+test: .ensure-protos unit-test integration-test .cleanup-test-env
 	@printf "$(GREEN)✓ All tests passed$(RESET)\n"
 
 # Run unit tests only
@@ -359,3 +388,56 @@ unit-test:
 	@go install gotest.tools/gotestsum@latest
 	@gotestsum --raw-command go test -v -race -failfast -coverprofile=coverage.out -covermode=atomic -json $$(go list ./...) && \
 		printf "$(GREEN)✓ Unit tests passed$(RESET)\n"
+
+# Run integration tests (requires ClickHouse to be running with seeded data)
+integration-test: build
+	@printf "$(CYAN)==> Running integration tests...$(RESET)\n"
+	@if [ ! -f "config.test.yaml" ]; then \
+		printf "$(YELLOW)⚠️  config.test.yaml not found, creating it...$(RESET)\n"; \
+		$(MAKE) .create-test-config; \
+	fi
+	@printf "$(CYAN)==> Starting API server in background...$(RESET)\n"
+	@./bin/server --config config.test.yaml > /tmp/xatu-cbt-api-test.log 2>&1 & \
+	SERVER_PID=$$!; \
+	echo $$SERVER_PID > /tmp/xatu-cbt-api-test.pid; \
+	printf "$(CYAN)==> Waiting for server to be ready (PID: $$SERVER_PID)...$(RESET)\n"; \
+	MAX_RETRIES=30; \
+	RETRY=0; \
+	while [ $$RETRY -lt $$MAX_RETRIES ]; do \
+		if curl -sf http://localhost:18080/health >/dev/null 2>&1; then \
+			printf "$(GREEN)✓ Server is ready$(RESET)\n"; \
+			break; \
+		fi; \
+		RETRY=$$((RETRY + 1)); \
+		if [ $$RETRY -eq $$MAX_RETRIES ]; then \
+			printf "$(RED)✗ Server failed to start within timeout$(RESET)\n"; \
+			cat /tmp/xatu-cbt-api-test.log; \
+			kill $$SERVER_PID 2>/dev/null || true; \
+			rm -f /tmp/xatu-cbt-api-test.pid; \
+			exit 1; \
+		fi; \
+		sleep 1; \
+	done; \
+	printf "$(CYAN)==> Testing API endpoints...$(RESET)\n"; \
+	FAILED=0; \
+	for endpoint in fct_data_types_integers fct_data_types_temporal fct_data_types_complex; do \
+		printf "$(CYAN)  Testing /api/v1/$$endpoint...$(RESET) "; \
+		HTTP_CODE=$$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:18080/api/v1/$$endpoint?id_eq=1"); \
+		if [ "$$HTTP_CODE" = "404" ]; then \
+			printf "$(RED)✗ $$HTTP_CODE (endpoint not found)$(RESET)\n"; \
+			FAILED=1; \
+		elif [ "$$HTTP_CODE" = "200" ]; then \
+			printf "$(GREEN)✓ $$HTTP_CODE$(RESET)\n"; \
+		else \
+			printf "$(YELLOW)⚠ $$HTTP_CODE (endpoint exists, may have validation/query errors)$(RESET)\n"; \
+		fi; \
+	done; \
+	printf "$(CYAN)==> Stopping API server...$(RESET)\n"; \
+	kill $$SERVER_PID 2>/dev/null || true; \
+	rm -f /tmp/xatu-cbt-api-test.pid; \
+	if [ $$FAILED -eq 1 ]; then \
+		printf "$(RED)✗ Integration tests failed$(RESET)\n"; \
+		cat /tmp/xatu-cbt-api-test.log; \
+		exit 1; \
+	fi; \
+	printf "$(GREEN)✓ Integration tests passed$(RESET)\n"

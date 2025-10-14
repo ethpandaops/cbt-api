@@ -21,10 +21,11 @@ func main() {
 	protoPath := flag.String("proto-path", ".xatu-cbt/pkg/proto/clickhouse",
 		"Path to proto files")
 	output := flag.String("output", "internal/server/implementation.go", "Output file")
+	configFile := flag.String("config", "config.yaml", "Path to configuration file")
 	flag.Parse()
 
 	// 0. Load config to get api.base_path
-	cfg, err := config.Load()
+	cfg, err := config.Load(*configFile)
 	if err != nil {
 		fmt.Printf("Error loading config: %v\n", err)
 		os.Exit(1)

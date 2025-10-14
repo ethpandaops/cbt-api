@@ -41,6 +41,11 @@ func main() {
 	// cannot scan into pointer-to-slice, only into slice.
 	processed = fixArrayPointers(processed)
 
+	// Fix map pointers (*map[K]V -> map[K]V) for ClickHouse driver compatibility
+	// oapi-codegen generates optional maps as *map[K]V, but ClickHouse driver
+	// cannot scan into pointer-to-map, only into map.
+	processed = fixMapPointers(processed)
+
 	if err := os.WriteFile(*output, []byte(processed), 0600); err != nil {
 		fmt.Printf("Error writing file: %v\n", err)
 		os.Exit(1)
@@ -85,4 +90,16 @@ func fixArrayPointers(content string) string {
 	re := regexp.MustCompile(`\*\[\]([a-zA-Z0-9_]+)`)
 
 	return re.ReplaceAllString(content, "[]$1")
+}
+
+// fixMapPointers converts *map[K]V to map[K]V for ClickHouse driver compatibility.
+//
+// Why this is needed:
+//   - oapi-codegen generates optional maps as pointers (e.g., *map[string]string)
+//   - ClickHouse driver's Scan() cannot handle *map[K]V, only map[K]V
+//   - Maps are reference types in Go, nil map is already a valid zero value
+func fixMapPointers(content string) string {
+	re := regexp.MustCompile(`\*map\[([a-zA-Z0-9_]+)\]([a-zA-Z0-9_]+)`)
+
+	return re.ReplaceAllString(content, "map[$1]$2")
 }

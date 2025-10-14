@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"net/http"
 	"os"
 	"os/signal"
@@ -17,6 +18,10 @@ import (
 )
 
 func main() {
+	// Parse command-line flags
+	configFile := flag.String("config", "config.yaml", "Path to configuration file")
+	flag.Parse()
+
 	// Setup logger
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.TextFormatter{
@@ -33,7 +38,7 @@ func main() {
 	}).Info("Starting xatu-cbt-api")
 
 	// Load config
-	cfg, err := config.Load()
+	cfg, err := config.Load(*configFile)
 	if err != nil {
 		logger.WithError(err).Fatal("Failed to load config")
 	}
