@@ -56,6 +56,9 @@ jobs:
             discovery:
               prefixes:
                 - fct
+                - int
+                - dim
+                - admin_cbt_incremental
               exclude:
                 - "*_local"  # Exclude all local tables
 
@@ -69,6 +72,9 @@ jobs:
             base_path: "/api/v1"
             expose_prefixes:
               - fct
+              - int
+              - dim
+              - admin_cbt_incremental
             exclude:
               - "*_local"
           EOF
