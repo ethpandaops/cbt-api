@@ -178,7 +178,7 @@ run: build-binary
 	CH_DB=$$(yq eval '.clickhouse.database' $(CONFIG_FILE)); \
 	DISCOVERY_PREFIXES=$$(yq eval '.clickhouse.discovery.prefixes | join(",")' $(CONFIG_FILE)); \
 	DISCOVERY_EXCLUDE=$$(yq eval '(.clickhouse.discovery.exclude // []) | join(",")' $(CONFIG_FILE)); \
-	PREFIX_CONDITIONS=$$(echo "$$DISCOVERY_PREFIXES" | tr ',' '\n' | sed "s/^/name LIKE '/; s/$$/_%%'/" | paste -sd'|' - | sed 's/|/ OR /g'); \
+	PREFIX_CONDITIONS=$$(echo "$$DISCOVERY_PREFIXES" | tr ',' '\n' | sed "s/.*/(name = '&' OR name LIKE '&_%%')/" | paste -sd'|' - | sed 's/|/ OR /g'); \
 	EXCLUDE_CONDITIONS=$$(echo "$$DISCOVERY_EXCLUDE" | tr ',' '\n' | sed "s/\*/%%/g; s/^/name NOT LIKE '/; s/$$/'/" | paste -sd'&' - | sed 's/&/ AND /g'); \
 	QUERY="SELECT arrayStringConcat(groupArray(name), ',') FROM system.tables WHERE database = '$$CH_DB' AND ($$PREFIX_CONDITIONS)"; \
 	if [ -n "$$EXCLUDE_CONDITIONS" ]; then QUERY="$$QUERY AND ($$EXCLUDE_CONDITIONS)"; fi; \

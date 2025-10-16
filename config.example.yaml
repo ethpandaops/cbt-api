@@ -21,6 +21,7 @@ clickhouse:
   discovery:
     prefixes:
       - fct
+      - int
       - dim
     exclude:
       - "*_test"   # Exclude test tables (example)
@@ -37,6 +38,8 @@ api:
   # Only tables with these prefixes will be exposed via REST API
   expose_prefixes:
     - fct
+    - dim
+    - int
   # Exclude tables matching these patterns from API exposure
   exclude:
     - "*_local"
