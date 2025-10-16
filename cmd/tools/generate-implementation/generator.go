@@ -277,12 +277,17 @@ func writeError(w http.ResponseWriter, status int, err error) {
 }
 
 func generateNextPageToken(currentToken string, itemCount int) string {
-	// Simple offset-based pagination
-	offset := 0
+	// Decode current token to get offset
+	offset := uint32(0)
 	if currentToken != "" {
-		offset, _ = strconv.Atoi(currentToken)
+		decoded, err := clickhouse.DecodePageToken(currentToken)
+		if err == nil {
+			offset = decoded
+		}
 	}
-	return strconv.Itoa(offset + itemCount)
+	// Calculate next offset and encode it
+	nextOffset := offset + uint32(itemCount)
+	return clickhouse.EncodePageToken(nextOffset)
 }
 
 // buildQueryOptions creates query options with conditional WithFinal.
