@@ -6,11 +6,10 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 var (
-	httpRequestsTotal = promauto.NewCounterVec(
+	httpRequestsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "cbt_api",
 			Name:      "http_requests_total",
@@ -19,7 +18,7 @@ var (
 		[]string{"method", "path", "status"},
 	)
 
-	httpRequestDuration = promauto.NewHistogramVec(
+	httpRequestDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "cbt_api",
 			Name:      "http_request_duration_seconds",
@@ -29,7 +28,7 @@ var (
 		[]string{"method", "path"},
 	)
 
-	httpRequestsInFlight = promauto.NewGauge(
+	httpRequestsInFlight = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: "cbt_api",
 			Name:      "http_requests_in_flight",
@@ -37,7 +36,7 @@ var (
 		},
 	)
 
-	httpRequestSizeBytes = promauto.NewHistogramVec(
+	httpRequestSizeBytes = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "cbt_api",
 			Name:      "http_request_size_bytes",
@@ -47,7 +46,7 @@ var (
 		[]string{"method", "path"},
 	)
 
-	httpResponseSizeBytes = promauto.NewHistogramVec(
+	httpResponseSizeBytes = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "cbt_api",
 			Name:      "http_response_size_bytes",
@@ -57,6 +56,14 @@ var (
 		[]string{"method", "path", "status"},
 	)
 )
+
+func init() {
+	prometheus.MustRegister(httpRequestsTotal)
+	prometheus.MustRegister(httpRequestDuration)
+	prometheus.MustRegister(httpRequestsInFlight)
+	prometheus.MustRegister(httpRequestSizeBytes)
+	prometheus.MustRegister(httpResponseSizeBytes)
+}
 
 // Metrics returns a middleware that collects Prometheus metrics.
 func Metrics() func(http.Handler) http.Handler {

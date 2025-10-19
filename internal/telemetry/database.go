@@ -8,7 +8,6 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -19,7 +18,7 @@ import (
 )
 
 var (
-	clickhouseQueryDuration = promauto.NewHistogramVec(
+	clickhouseQueryDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "cbt_api",
 			Subsystem: "clickhouse",
@@ -30,7 +29,7 @@ var (
 		[]string{"operation", "sql_operation"},
 	)
 
-	clickhouseQueriesTotal = promauto.NewCounterVec(
+	clickhouseQueriesTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "cbt_api",
 			Subsystem: "clickhouse",
@@ -40,7 +39,7 @@ var (
 		[]string{"operation", "sql_operation"},
 	)
 
-	clickhouseQueryErrorsTotal = promauto.NewCounterVec(
+	clickhouseQueryErrorsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "cbt_api",
 			Subsystem: "clickhouse",
@@ -50,7 +49,7 @@ var (
 		[]string{"operation", "sql_operation"},
 	)
 
-	clickhouseRowsReturned = promauto.NewHistogramVec(
+	clickhouseRowsReturned = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "cbt_api",
 			Subsystem: "clickhouse",
@@ -61,6 +60,13 @@ var (
 		[]string{"operation", "sql_operation"},
 	)
 )
+
+func init() {
+	prometheus.MustRegister(clickhouseQueryDuration)
+	prometheus.MustRegister(clickhouseQueriesTotal)
+	prometheus.MustRegister(clickhouseQueryErrorsTotal)
+	prometheus.MustRegister(clickhouseRowsReturned)
+}
 
 // TracedClient wraps database.Client with OpenTelemetry instrumentation.
 type TracedClient struct {
