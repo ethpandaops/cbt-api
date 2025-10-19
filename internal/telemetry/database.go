@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -14,6 +16,57 @@ import (
 
 	"github.com/ethpandaops/cbt-api/internal/database"
 )
+
+var (
+	clickhouseQueryDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: "cbt_api",
+			Subsystem: "clickhouse",
+			Name:      "query_duration_seconds",
+			Help:      "ClickHouse query duration in seconds",
+			Buckets:   []float64{.001, .005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10},
+		},
+		[]string{"operation", "sql_operation"},
+	)
+
+	clickhouseQueriesTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "cbt_api",
+			Subsystem: "clickhouse",
+			Name:      "queries_total",
+			Help:      "Total number of ClickHouse queries",
+		},
+		[]string{"operation", "sql_operation"},
+	)
+
+	clickhouseQueryErrorsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "cbt_api",
+			Subsystem: "clickhouse",
+			Name:      "query_errors_total",
+			Help:      "Total number of ClickHouse query errors",
+		},
+		[]string{"operation", "sql_operation"},
+	)
+
+	clickhouseRowsReturned = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: "cbt_api",
+			Subsystem: "clickhouse",
+			Name:      "rows_returned",
+			Help:      "Number of rows returned by ClickHouse queries",
+			Buckets:   []float64{1, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000},
+		},
+		[]string{"operation", "sql_operation"},
+	)
+)
+
+func init() {
+	prometheus.MustRegister(clickhouseQueryDuration)
+	prometheus.MustRegister(clickhouseQueriesTotal)
+	prometheus.MustRegister(clickhouseQueryErrorsTotal)
+	prometheus.MustRegister(clickhouseRowsReturned)
+}
 
 // TracedClient wraps database.Client with OpenTelemetry instrumentation.
 type TracedClient struct {
@@ -38,26 +91,53 @@ func NewTracedClient(client *database.Client, dbName string, logger logrus.Field
 
 // Query executes a query with tracing.
 func (c *TracedClient) Query(ctx context.Context, query string, args ...any) (driver.Rows, error) {
+	start := time.Now()
+	sqlOp := extractSQLOperation(query)
+
 	ctx, span := c.startSpan(ctx, "Query", query, args...)
 	defer span.End()
 
+	// Record query count
+	clickhouseQueriesTotal.WithLabelValues("Query", sqlOp).Inc()
+
 	rows, err := c.client.Query(ctx, query, args...)
+	duration := time.Since(start).Seconds()
+
+	// Record query duration
+	clickhouseQueryDuration.WithLabelValues("Query", sqlOp).Observe(duration)
+
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		clickhouseQueryErrorsTotal.WithLabelValues("Query", sqlOp).Inc()
 
 		return nil, err
 	}
 
-	return &tracedRows{Rows: rows, span: span}, nil
+	return &tracedRows{
+		Rows:      rows,
+		span:      span,
+		operation: "Query",
+		sqlOp:     sqlOp,
+	}, nil
 }
 
 // QueryRow executes a query that returns a single row with tracing.
 func (c *TracedClient) QueryRow(ctx context.Context, query string, args ...any) driver.Row {
+	start := time.Now()
+	sqlOp := extractSQLOperation(query)
+
 	ctx, span := c.startSpan(ctx, "QueryRow", query, args...)
 	defer span.End()
 
+	// Record query count
+	clickhouseQueriesTotal.WithLabelValues("QueryRow", sqlOp).Inc()
+
 	row := c.client.QueryRow(ctx, query, args...)
+	duration := time.Since(start).Seconds()
+
+	// Record query duration
+	clickhouseQueryDuration.WithLabelValues("QueryRow", sqlOp).Observe(duration)
 
 	// Note: driver.Row doesn't expose errors until Scan() is called
 	// We record the operation but can't capture row-level errors here.
@@ -68,13 +148,25 @@ func (c *TracedClient) QueryRow(ctx context.Context, query string, args ...any) 
 
 // Select executes a query and scans results into dest with tracing.
 func (c *TracedClient) Select(ctx context.Context, dest any, query string, args ...any) error {
+	start := time.Now()
+	sqlOp := extractSQLOperation(query)
+
 	ctx, span := c.startSpan(ctx, "Select", query, args...)
 	defer span.End()
 
+	// Record query count
+	clickhouseQueriesTotal.WithLabelValues("Select", sqlOp).Inc()
+
 	err := c.client.Select(ctx, dest, query, args...)
+	duration := time.Since(start).Seconds()
+
+	// Record query duration
+	clickhouseQueryDuration.WithLabelValues("Select", sqlOp).Observe(duration)
+
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		clickhouseQueryErrorsTotal.WithLabelValues("Select", sqlOp).Inc()
 
 		return err
 	}
@@ -86,13 +178,25 @@ func (c *TracedClient) Select(ctx context.Context, dest any, query string, args 
 
 // Exec executes a query without returning rows with tracing.
 func (c *TracedClient) Exec(ctx context.Context, query string, args ...any) error {
+	start := time.Now()
+	sqlOp := extractSQLOperation(query)
+
 	ctx, span := c.startSpan(ctx, "Exec", query, args...)
 	defer span.End()
 
+	// Record query count
+	clickhouseQueriesTotal.WithLabelValues("Exec", sqlOp).Inc()
+
 	err := c.client.Exec(ctx, query, args...)
+	duration := time.Since(start).Seconds()
+
+	// Record query duration
+	clickhouseQueryDuration.WithLabelValues("Exec", sqlOp).Observe(duration)
+
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		clickhouseQueryErrorsTotal.WithLabelValues("Exec", sqlOp).Inc()
 
 		return err
 	}
@@ -161,8 +265,10 @@ func truncateString(s string, maxLen int) string {
 // tracedRows wraps driver.Rows to record row count on close.
 type tracedRows struct {
 	driver.Rows
-	span     oteltrace.Span
-	rowCount int64
+	span      oteltrace.Span
+	rowCount  int64
+	operation string
+	sqlOp     string
 }
 
 // Next wraps the original Next and counts rows.
@@ -174,6 +280,11 @@ func (r *tracedRows) Next() bool {
 		// When iteration completes, record row count
 		r.span.SetAttributes(AttrDBRowsReturned.Int64(r.rowCount))
 		r.span.SetStatus(codes.Ok, "")
+
+		// Record rows returned metric
+		if r.rowCount > 0 {
+			clickhouseRowsReturned.WithLabelValues(r.operation, r.sqlOp).Observe(float64(r.rowCount))
+		}
 	}
 
 	return hasNext
@@ -184,6 +295,7 @@ func (r *tracedRows) Close() error {
 	// Record final row count if not already done
 	if r.rowCount > 0 {
 		r.span.SetAttributes(AttrDBRowsReturned.Int64(r.rowCount))
+		clickhouseRowsReturned.WithLabelValues(r.operation, r.sqlOp).Observe(float64(r.rowCount))
 	}
 
 	return r.Rows.Close()
