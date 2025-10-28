@@ -33,8 +33,9 @@ type APIConfig struct {
 
 // ServerConfig holds server-specific configuration.
 type ServerConfig struct {
-	Port int    `mapstructure:"port"`
-	Host string `mapstructure:"host"`
+	Port        int    `mapstructure:"port"`
+	MetricsPort int    `mapstructure:"metrics_port"`
+	Host        string `mapstructure:"host"`
 
 	// HTTP server timeouts
 	ReadHeaderTimeout time.Duration `mapstructure:"read_header_timeout"`
@@ -102,6 +103,7 @@ func Load(configFile string) (*Config, error) {
 
 	// Server defaults
 	viper.SetDefault("server.port", 8080)
+	viper.SetDefault("server.metrics_port", 9090)
 	viper.SetDefault("server.host", "0.0.0.0")
 	viper.SetDefault("server.read_header_timeout", 10*time.Second)
 	viper.SetDefault("server.read_timeout", 30*time.Second)

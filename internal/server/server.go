@@ -39,9 +39,8 @@ func New(cfg *config.Config, logger logrus.FieldLogger) (*http.Server, error) {
 	// Setup router using native http.ServeMux with method routing
 	mux := http.NewServeMux()
 
-	// Health & metrics endpoints
+	// Health endpoint
 	mux.HandleFunc("GET /health", handlers.Health)
-	mux.Handle("GET /metrics", promhttp.Handler())
 
 	// OpenAPI spec endpoint
 	mux.HandleFunc("GET /openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
@@ -74,7 +73,7 @@ func New(cfg *config.Config, logger logrus.FieldLogger) (*http.Server, error) {
 		handler = telemetry.HTTPMiddleware()(handler)
 	}
 
-	handler = middleware.Gzip(middleware.WithExcludePaths("/metrics"))(handler)
+	handler = middleware.Gzip()(handler)
 
 	return &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
@@ -130,4 +129,19 @@ func serveScalarDocs(w http.ResponseWriter, _ *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = w.Write([]byte(html))
+}
+
+// NewMetrics creates a dedicated metrics HTTP server.
+func NewMetrics(cfg *config.Config) *http.Server {
+	mux := http.NewServeMux()
+	mux.Handle("GET /metrics", promhttp.Handler())
+
+	return &http.Server{
+		Addr:              fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.MetricsPort),
+		Handler:           mux,
+		ReadHeaderTimeout: cfg.Server.ReadHeaderTimeout,
+		ReadTimeout:       cfg.Server.ReadTimeout,
+		WriteTimeout:      cfg.Server.WriteTimeout,
+		IdleTimeout:       cfg.Server.IdleTimeout,
+	}
 }

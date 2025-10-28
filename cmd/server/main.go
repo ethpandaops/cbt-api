@@ -61,23 +61,35 @@ func main() {
 		}
 	}()
 
-	// Create server
+	// Create API server
 	srv, err := server.New(cfg, logger)
 	if err != nil {
 		logger.WithError(err).Fatal("Failed to create server")
 	}
 
-	// Start server
+	// Create metrics server
+	metricsSrv := server.NewMetrics(cfg)
+
+	// Start API server
 	go func() {
-		logger.WithField("port", cfg.Server.Port).Info("Starting server")
+		logger.WithField("port", cfg.Server.Port).Info("Starting API server")
 		logger.WithField("url", "/health").Info("Health endpoint")
-		logger.WithField("url", "/metrics").Info("Metrics endpoint")
 		logger.WithField("url", "/docs/").Info("Docs endpoint")
 		logger.WithField("url", "/openapi.yaml").Info("OpenAPI spec endpoint")
-		logger.Info("Server ready, accepting connections")
+		logger.Info("API server ready, accepting connections")
 
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.WithError(err).Fatal("Server error")
+			logger.WithError(err).Fatal("API server error")
+		}
+	}()
+
+	// Start metrics server
+	go func() {
+		logger.WithField("port", cfg.Server.MetricsPort).Info("Starting metrics server")
+		logger.WithField("url", "/metrics").Info("Metrics endpoint")
+
+		if err := metricsSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.WithError(err).Fatal("Metrics server error")
 		}
 	}()
 
@@ -86,11 +98,20 @@ func main() {
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	<-sigChan
 
-	logger.Info("Shutting down server")
+	logger.Info("Shutting down servers")
 
-	if err := srv.Shutdown(context.Background()); err != nil {
-		logger.WithError(err).Error("Server shutdown error")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Shutdown API server
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		logger.WithError(err).Error("API server shutdown error")
 	}
 
-	logger.Info("Server stopped")
+	// Shutdown metrics server
+	if err := metricsSrv.Shutdown(shutdownCtx); err != nil {
+		logger.WithError(err).Error("Metrics server shutdown error")
+	}
+
+	logger.Info("Servers stopped")
 }
