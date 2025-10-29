@@ -145,21 +145,22 @@ func %s(%s) *clickhouse.%s {
 
 	// Numeric types support full range of operations
 	return fmt.Sprintf(`// %s builds a %s from flattened parameters.
-// Priority: eq > between (gte+lte) > individual ops > in > not_in
+// Priority: eq > range combinations (converted to BETWEEN) > individual ops > in > not_in
 func %s(%s) *clickhouse.%s {
 	// Return nil if no filters provided
 	if %s {
 		return nil
 	}
 
-	// Priority 1: Equality
+	// Priority 1: Equality (mutually exclusive with ranges)
 	if eq != nil {
 		return &clickhouse.%s{
 			Filter: &clickhouse.%s_Eq{Eq: *eq},
 		}
 	}
 
-	// Priority 2: Auto-combine gte + lte into BETWEEN for optimization
+	// Priority 2: Detect and combine range operators into BETWEEN for optimization
+	// Case 1: gte + lte → BETWEEN [gte, lte]
 	if gte != nil && lte != nil {
 		return &clickhouse.%s{
 			Filter: &clickhouse.%s_Between{
@@ -171,7 +172,51 @@ func %s(%s) *clickhouse.%s {
 		}
 	}
 
-	// Priority 3: Individual range operators
+	// Case 2: gte + lt → BETWEEN [gte, lt-1]
+	if gte != nil && lt != nil {
+		if *lt > 0 && *lt > *gte {
+			return &clickhouse.%s{
+				Filter: &clickhouse.%s_Between{
+					Between: &clickhouse.%sRange{
+						Min: *gte,
+						Max: &wrapperspb.%sValue{Value: *lt - 1},
+					},
+				},
+			}
+		}
+		// Invalid range, fall back to gte only
+		return &clickhouse.%s{Filter: &clickhouse.%s_Gte{Gte: *gte}}
+	}
+
+	// Case 3: gt + lte → BETWEEN [gt+1, lte]
+	if gt != nil && lte != nil {
+		return &clickhouse.%s{
+			Filter: &clickhouse.%s_Between{
+				Between: &clickhouse.%sRange{
+					Min: *gt + 1,
+					Max: &wrapperspb.%sValue{Value: *lte},
+				},
+			},
+		}
+	}
+
+	// Case 4: gt + lt → BETWEEN [gt+1, lt-1]
+	if gt != nil && lt != nil {
+		if *lt > 0 && *lt > *gt + 1 {
+			return &clickhouse.%s{
+				Filter: &clickhouse.%s_Between{
+					Between: &clickhouse.%sRange{
+						Min: *gt + 1,
+						Max: &wrapperspb.%sValue{Value: *lt - 1},
+					},
+				},
+			}
+		}
+		// Invalid range, fall back to gt only
+		return &clickhouse.%s{Filter: &clickhouse.%s_Gt{Gt: *gt}}
+	}
+
+	// Priority 3: Individual range operators (fallback when no combination detected)
 	if lte != nil {
 		return &clickhouse.%s{Filter: &clickhouse.%s_Lte{Lte: *lte}}
 	}
@@ -214,6 +259,11 @@ func %s(%s) *clickhouse.%s {
 `, ft.Name, ft.Name, funcName, params, ft.Name, nilCheck,
 		ft.Name, ft.Name,
 		ft.Name, ft.Name, baseTypePascal, baseTypePascal,
+		ft.Name, ft.Name, baseTypePascal, baseTypePascal,
+		ft.Name, ft.Name,
+		ft.Name, ft.Name, baseTypePascal, baseTypePascal,
+		ft.Name, ft.Name, baseTypePascal, baseTypePascal,
+		ft.Name, ft.Name,
 		ft.Name, ft.Name,
 		ft.Name, ft.Name,
 		ft.Name, ft.Name,
@@ -354,11 +404,13 @@ func %s(%s) *clickhouse.%s {
 		}
 	}
 
-	// Same logic as non-nullable version
+	// Same logic as non-nullable version with range combination support
 	if eq != nil {
 		return &clickhouse.%s{Filter: &clickhouse.%s_Eq{Eq: *eq}}
 	}
 
+	// Detect and combine range operators into BETWEEN
+	// Case 1: gte + lte → BETWEEN [gte, lte]
 	if gte != nil && lte != nil {
 		return &clickhouse.%s{
 			Filter: &clickhouse.%s_Between{
@@ -367,6 +419,42 @@ func %s(%s) *clickhouse.%s {
 		}
 	}
 
+	// Case 2: gte + lt → BETWEEN [gte, lt-1]
+	if gte != nil && lt != nil {
+		if *lt > 0 && *lt > *gte {
+			return &clickhouse.%s{
+				Filter: &clickhouse.%s_Between{
+					Between: &clickhouse.%sRange{Min: *gte, Max: &wrapperspb.%sValue{Value: *lt - 1}},
+				},
+			}
+		}
+		// Invalid range, fall back to gte only
+		return &clickhouse.%s{Filter: &clickhouse.%s_Gte{Gte: *gte}}
+	}
+
+	// Case 3: gt + lte → BETWEEN [gt+1, lte]
+	if gt != nil && lte != nil {
+		return &clickhouse.%s{
+			Filter: &clickhouse.%s_Between{
+				Between: &clickhouse.%sRange{Min: *gt + 1, Max: &wrapperspb.%sValue{Value: *lte}},
+			},
+		}
+	}
+
+	// Case 4: gt + lt → BETWEEN [gt+1, lt-1]
+	if gt != nil && lt != nil {
+		if *lt > 0 && *lt > *gt + 1 {
+			return &clickhouse.%s{
+				Filter: &clickhouse.%s_Between{
+					Between: &clickhouse.%sRange{Min: *gt + 1, Max: &wrapperspb.%sValue{Value: *lt - 1}},
+				},
+			}
+		}
+		// Invalid range, fall back to gt only
+		return &clickhouse.%s{Filter: &clickhouse.%s_Gt{Gt: *gt}}
+	}
+
+	// Individual range operators (fallback when no combination detected)
 	if lte != nil {
 		return &clickhouse.%s{Filter: &clickhouse.%s_Lte{Lte: *lte}}
 	}
@@ -405,6 +493,11 @@ func %s(%s) *clickhouse.%s {
 		ft.Name, ft.Name,
 		ft.Name, ft.Name,
 		ft.Name, ft.Name, baseTypePascal, baseTypePascal,
+		ft.Name, ft.Name, baseTypePascal, baseTypePascal,
+		ft.Name, ft.Name,
+		ft.Name, ft.Name, baseTypePascal, baseTypePascal,
+		ft.Name, ft.Name, baseTypePascal, baseTypePascal,
+		ft.Name, ft.Name,
 		ft.Name, ft.Name,
 		ft.Name, ft.Name,
 		ft.Name, ft.Name,

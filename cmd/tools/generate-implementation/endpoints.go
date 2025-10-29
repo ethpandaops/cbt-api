@@ -314,7 +314,7 @@ func generateBuilderArgs(params []Param, filterType string) string {
 		}
 	} else if strings.Contains(filterType, "String") {
 		// String filters
-		baseOps := []string{"eq", "ne", "contains", "starts_with", "ends_with", "like", "not_like", "in", "not_in"}
+		baseOps := []string{"eq", "ne", "contains", "starts_with", "ends_with", "like", "not_like", "in_values", "not_in_values"}
 		for _, op := range baseOps {
 			if arg, ok := argMap[op]; ok {
 				args = append(args, arg)

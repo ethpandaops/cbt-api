@@ -138,10 +138,10 @@ func TestGenerateBuilderArgs(t *testing.T) {
 		{
 			name: "string filter with in list",
 			params: []Param{
-				{Name: "network_in", Operator: "in"},
+				{Name: "network_in_values", Operator: "in_values"},
 			},
 			filterType: "StringFilter",
-			expected:   "nil, nil, nil, nil, nil, nil, nil, params.NetworkIn, nil",
+			expected:   "nil, nil, nil, nil, nil, nil, nil, params.NetworkInValues, nil",
 		},
 		{
 			name: "bool filter",
