@@ -244,9 +244,21 @@ func TestGenerateScalarFilterBuilder(t *testing.T) {
 			expectedInCode: []string{
 				"func buildUInt32Filter(eq, ne, lt, lte, gt, gte *uint32, in, notIn *string) *clickhouse.UInt32Filter",
 				"if eq != nil {",
+				// Original combination
 				"if gte != nil && lte != nil {",
 				"Between: &clickhouse.UInt32Range{",
 				"&wrapperspb.UInt32Value{Value: *lte}",
+				// NEW: gte + lt combination
+				"if gte != nil && lt != nil {",
+				"if *lt > 0 && *lt > *gte {",
+				"&wrapperspb.UInt32Value{Value: *lt - 1}",
+				// NEW: gt + lte combination
+				"if gt != nil && lte != nil {",
+				"Min: *gt + 1",
+				// NEW: gt + lt combination
+				"if gt != nil && lt != nil {",
+				"if *lt > 0 && *lt > *gt + 1 {",
+				// Fallback individual operators
 				"if lte != nil {",
 				"if gte != nil {",
 				"if lt != nil {",
@@ -336,8 +348,17 @@ func TestGenerateNullableFilterBuilder(t *testing.T) {
 				"func buildNullableUInt32Filter(eq, ne, lt, lte, gt, gte *uint32, in, notIn *string, isNull, isNotNull *bool) *clickhouse.NullableUInt32Filter",
 				"if isNull != nil && *isNull {",
 				"if isNotNull != nil && *isNotNull {",
+				// Original combination
 				"if gte != nil && lte != nil {",
 				"Between: &clickhouse.UInt32Range{",
+				// NEW: gte + lt combination
+				"if gte != nil && lt != nil {",
+				"if *lt > 0 && *lt > *gte {",
+				// NEW: gt + lte combination
+				"if gt != nil && lte != nil {",
+				// NEW: gt + lt combination
+				"if gt != nil && lt != nil {",
+				"if *lt > 0 && *lt > *gt + 1 {",
 			},
 			notInCode: []string{
 				"contains",
