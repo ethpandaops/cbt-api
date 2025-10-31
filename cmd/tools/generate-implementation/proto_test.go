@@ -707,6 +707,7 @@ func TestAnalyzeProtos(t *testing.T) {
 
 	defer func() {
 		_ = os.Chdir(originalWd)
+
 		os.RemoveAll(tmpDir.Name())
 	}()
 

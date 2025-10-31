@@ -23,6 +23,7 @@ func main() {
 	output := flag.String("output", "internal/server/implementation.go", "Output file")
 	configFile := flag.String("config", "config.yaml", "Path to configuration file")
 	basePath := flag.String("base-path", "/api/v1", "API base path (defaults to /api/v1, overridden by config if present)")
+
 	flag.Parse()
 
 	// 0. Load config to get api.base_path (optional - falls back to flag default)

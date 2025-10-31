@@ -20,6 +20,7 @@ import (
 func main() {
 	// Parse command-line flags
 	configFile := flag.String("config", "config.yaml", "Path to configuration file")
+
 	flag.Parse()
 
 	// Setup logger
