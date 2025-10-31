@@ -63,8 +63,10 @@ func New(cfg *config.Config, logger logrus.FieldLogger) (*http.Server, error) {
 
 	// Initialize headers manager from config
 	var headersManager *headers.Manager
+
 	if len(cfg.Headers.Policies) > 0 {
 		var err error
+
 		headersManager, err = headers.NewManager(cfg.Headers.Policies)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize headers manager: %w", err)

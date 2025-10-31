@@ -666,9 +666,9 @@ func TestMiddleware(t *testing.T) {
 			handlerBody: "this is the original response body",
 		},
 		{
-			name: "empty policies list",
-			policies: []config.HeaderPolicy{},
-			requestPath: "/test",
+			name:          "empty policies list",
+			policies:      []config.HeaderPolicy{},
+			requestPath:   "/test",
 			wantNoHeaders: true,
 			wantBody:      "test",
 			handlerBody:   "test",
@@ -714,6 +714,7 @@ func TestMiddleware(t *testing.T) {
 				for k, v := range tt.handlerHeaders {
 					w.Header().Set(k, v)
 				}
+
 				_, _ = w.Write([]byte(tt.handlerBody))
 			})
 
@@ -795,7 +796,7 @@ func TestMiddlewareLogging(t *testing.T) {
 	assert.Equal(t, "max-age=60", recorder.Header().Get("Cache-Control"))
 }
 
-// logBufferRecorder is a minimal recorder for testing
+// logBufferRecorder is a minimal recorder for testing.
 type logBufferRecorder struct {
 	headers map[string][]string
 }

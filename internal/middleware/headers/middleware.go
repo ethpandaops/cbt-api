@@ -14,7 +14,7 @@ func (m *Manager) Middleware(log logrus.FieldLogger) func(http.Handler) http.Han
 			// Match path to policy and get headers
 			policyName, headers := m.Match(r.URL.Path)
 
-			if headers != nil && len(headers) > 0 {
+			if len(headers) > 0 {
 				// Set all headers from policy
 				for key, value := range headers {
 					w.Header().Set(key, value)
