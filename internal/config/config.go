@@ -14,6 +14,7 @@ type Config struct {
 	Proto      ProtoConfig      `mapstructure:"proto"`
 	API        APIConfig        `mapstructure:"api"`
 	Telemetry  TelemetryConfig  `mapstructure:"telemetry"`
+	Headers    HeadersConfig    `mapstructure:"headers"`
 }
 
 // ProtoConfig holds Protocol Buffer generation configuration.
@@ -93,6 +94,18 @@ type TelemetryConfig struct {
 	// Export settings
 	ExportTimeout   time.Duration `mapstructure:"export_timeout"`    // OTLP export timeout
 	ExportBatchSize int           `mapstructure:"export_batch_size"` // Batch size for span processor
+}
+
+// HeadersConfig configures HTTP header policies for endpoints.
+type HeadersConfig struct {
+	Policies []HeaderPolicy `mapstructure:"policies"`
+}
+
+// HeaderPolicy defines headers to apply to requests matching a path pattern.
+type HeaderPolicy struct {
+	Name        string            `mapstructure:"name"`         // Policy name for logging/debugging
+	PathPattern string            `mapstructure:"path_pattern"` // Regex pattern to match request paths
+	Headers     map[string]string `mapstructure:"headers"`      // Headers to set (key: value)
 }
 
 // Load loads configuration from file and environment variables.

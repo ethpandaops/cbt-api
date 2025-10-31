@@ -13,6 +13,7 @@ import (
 	apierrors "github.com/ethpandaops/cbt-api/internal/errors"
 	"github.com/ethpandaops/cbt-api/internal/handlers"
 	"github.com/ethpandaops/cbt-api/internal/middleware"
+	"github.com/ethpandaops/cbt-api/internal/middleware/headers"
 	"github.com/ethpandaops/cbt-api/internal/telemetry"
 )
 
@@ -60,6 +61,18 @@ func New(cfg *config.Config, logger logrus.FieldLogger) (*http.Server, error) {
 		ErrorHandlerFunc: apierrors.DefaultErrorHandler(logger),
 	})
 
+	// Initialize headers manager from config
+	var headersManager *headers.Manager
+	if len(cfg.Headers.Policies) > 0 {
+		var err error
+		headersManager, err = headers.NewManager(cfg.Headers.Policies)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize headers manager: %w", err)
+		}
+
+		logger.WithField("count", len(cfg.Headers.Policies)).Info("initialized headers manager with policies")
+	}
+
 	// Apply middleware stack (wrap the mux)
 	handler := middleware.Logging(logger)(mux)
 	handler = middleware.NotFoundHandler()(handler)
@@ -74,6 +87,11 @@ func New(cfg *config.Config, logger logrus.FieldLogger) (*http.Server, error) {
 	}
 
 	handler = middleware.Gzip()(handler)
+
+	// Apply headers middleware if configured
+	if headersManager != nil {
+		handler = headersManager.Middleware(logger.WithField("component", "headers"))(handler)
+	}
 
 	return &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
