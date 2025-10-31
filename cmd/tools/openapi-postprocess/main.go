@@ -16,6 +16,7 @@ const (
 func main() {
 	input := flag.String("input", "", "Input file path")
 	output := flag.String("output", "", "Output file path (defaults to input)")
+
 	flag.Parse()
 
 	if *input == "" {

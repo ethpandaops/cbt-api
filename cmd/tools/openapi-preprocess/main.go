@@ -89,6 +89,7 @@ func main() {
 	protoPath := flag.String("proto-path", "pkg/proto/clickhouse", "Path to proto files")
 	descriptorPath := flag.String("descriptor", ".descriptors.pb", "Path to proto descriptor file")
 	configFile := flag.String("config", "config.yaml", "Path to config file")
+
 	flag.Parse()
 
 	if *input == "" || *output == "" {
