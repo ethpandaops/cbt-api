@@ -72,6 +72,10 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, params handlers.%s) 
 		req.PageToken = *params.PageToken
 		span.SetAttributes(attribute.String("pagination.page_token", *params.PageToken))
 	}
+	if params.OrderBy != nil {
+		req.OrderBy = *params.OrderBy
+		span.SetAttributes(attribute.String("query.order_by", *params.OrderBy))
+	}
 
 	// Use existing Query Builder
 	_, buildSpan := tracer.Start(ctx, "handler.buildQuery")
