@@ -191,11 +191,12 @@ run: build-binary
 		if [ -z "$$CH_PORT" ]; then CH_PORT=443; fi; \
 		CH_URL="https://$$CH_HOST:$$CH_PORT"; \
 	elif [ "$$CH_PROTO" = "http" ]; then \
-		if [ -z "$$CH_PORT" ]; then CH_PORT=80; fi; \
+		if [ -z "$$CH_PORT" ]; then CH_PORT=8123; fi; \
 		CH_URL="http://$$CH_HOST:$$CH_PORT"; \
 	else \
 		CH_URL="http://$$CH_HOST:8123"; \
 	fi; \
+	printf "$(CYAN)Using: $$CH_URL/?database=$$CH_DB$(RESET)\n"; \
 	TABLES=$$(curl -fsSL "$$CH_URL/?database=$$CH_DB" \
 	  --user "$$CH_USER:$$CH_PASS" \
 	  --data-binary "$$QUERY FORMAT TSVRaw" 2>&1); \
@@ -225,8 +226,7 @@ run: build-binary
 	fi; \
 	NETWORK_FLAG=""; \
 	if echo "$$NATIVE_DSN" | grep -Eq "localhost|127\.0\.0\.1"; then \
-		NATIVE_DSN=$$(echo "$$NATIVE_DSN" | sed 's|localhost|clickhouse|g' | sed 's|127\.0\.0\.1|clickhouse|g'); \
-		NETWORK_FLAG="--network examples_default"; \
+		NATIVE_DSN=$$(echo "$$NATIVE_DSN" | sed 's|localhost|host.docker.internal|g' | sed 's|127\.0\.0\.1|host.docker.internal|g'); \
 	fi; \
 	docker pull ethpandaops/clickhouse-proto-gen:latest; \
 	docker run --rm -v "$$(pwd):/workspace" \
