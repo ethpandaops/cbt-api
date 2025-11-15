@@ -224,9 +224,14 @@ run: build-binary
 	if echo "$$NATIVE_DSN" | grep -q "^https://"; then \
 		NATIVE_DSN="$$NATIVE_DSN?secure=true"; \
 	fi; \
-	NETWORK_FLAG=""; \
+	NETWORK_FLAG="--add-host=host.docker.internal:host-gateway"; \
+	CLICKHOUSE_HOSTNAME="host.docker.internal"; \
 	if echo "$$NATIVE_DSN" | grep -Eq "localhost|127\.0\.0\.1"; then \
-		NATIVE_DSN=$$(echo "$$NATIVE_DSN" | sed 's|localhost|host.docker.internal|g' | sed 's|127\.0\.0\.1|host.docker.internal|g'); \
+		if docker network ls --format '{{.Name}}' | grep -q '^xatu_xatu-net$$'; then \
+			NETWORK_FLAG="--network xatu_xatu-net"; \
+			CLICKHOUSE_HOSTNAME="xatu-cbt-clickhouse-01"; \
+		fi; \
+		NATIVE_DSN=$$(echo "$$NATIVE_DSN" | sed "s|localhost|$$CLICKHOUSE_HOSTNAME|g" | sed "s|127\.0\.0\.1|$$CLICKHOUSE_HOSTNAME|g"); \
 	fi; \
 	docker pull ethpandaops/clickhouse-proto-gen:latest; \
 	docker run --rm -v "$$(pwd):/workspace" \
