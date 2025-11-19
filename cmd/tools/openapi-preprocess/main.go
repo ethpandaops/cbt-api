@@ -73,7 +73,7 @@ var wrapperTypeMappings = map[string]WrapperTypeMapping{
 // Regex patterns for parsing proto files.
 var (
 	servicePattern      = regexp.MustCompile(`service\s+(\w+)`)
-	messagePattern      = regexp.MustCompile(`^message\s+(List\w+Request|Get\w+Request|Fct\w+|Dim\w+)`)
+	messagePattern      = regexp.MustCompile(`^message\s+(List\w+Request|Get\w+Request|Fct\w+|Dim\w+|Int\w+)`)
 	fieldCommentPattern = regexp.MustCompile(`^\s*//\s*(.+)`)
 	fieldPattern        = regexp.MustCompile(`^\s*(?:\w+)\s+(\w+)\s+=\s+\d+`)
 	wrapperFieldPattern = regexp.MustCompile(`^\s*google\.protobuf\.(\w+)\s+(\w+)\s+=\s+\d+`)
