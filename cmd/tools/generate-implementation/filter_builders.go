@@ -25,7 +25,9 @@ func generateFilterBuilders(protoInfo *ProtoInfo) string {
 	for _, name := range filterNames {
 		filterType := protoInfo.FilterTypes[name]
 
-		if filterType.IsMap {
+		if filterType.IsArray {
+			sb.WriteString(generateArrayFilterBuilder(filterType))
+		} else if filterType.IsMap {
 			sb.WriteString(generateMapFilterBuilder(filterType))
 		} else if filterType.IsNullable {
 			sb.WriteString(generateNullableFilterBuilder(filterType))
@@ -558,6 +560,86 @@ func %s(hasKey, notHasKey, hasAnyKey, hasAllKeys *string) *clickhouse.%s {
 }
 
 `, ft.Name, ft.Name, funcName, ft.Name,
+		ft.Name, ft.Name,
+		ft.Name, ft.Name,
+		ft.Name, ft.Name,
+		ft.Name, ft.Name)
+}
+
+// generateArrayFilterBuilder generates a filter builder for array filter types.
+func generateArrayFilterBuilder(ft *FilterType) string {
+	funcName := "build" + ft.Name
+
+	// Extract element type from base type (e.g., "[]uint32" -> "uint32")
+	elementType := strings.TrimPrefix(ft.BaseType, "[]")
+	elementTypePascal := toProtoTypeName(elementType)
+
+	return fmt.Sprintf(`// %s builds a %s from flattened parameters.
+func %s(has *%s, hasAllValues, hasAnyValues []%s, lengthEq, lengthGt, lengthGte, lengthLt, lengthLte *uint32) *clickhouse.%s {
+	if has == nil && len(hasAllValues) == 0 && len(hasAnyValues) == 0 && lengthEq == nil && lengthGt == nil && lengthGte == nil && lengthLt == nil && lengthLte == nil {
+		return nil
+	}
+
+	// Priority 1: has (single value check)
+	if has != nil {
+		return &clickhouse.%s{
+			Filter: &clickhouse.%s_Has{Has: *has},
+		}
+	}
+
+	// Priority 2: has_all (must contain all values)
+	if len(hasAllValues) > 0 {
+		return &clickhouse.%s{
+			Filter: &clickhouse.%s_HasAll{
+				HasAll: &clickhouse.%sList{Values: hasAllValues},
+			},
+		}
+	}
+
+	// Priority 3: has_any (must contain at least one value)
+	if len(hasAnyValues) > 0 {
+		return &clickhouse.%s{
+			Filter: &clickhouse.%s_HasAny{
+				HasAny: &clickhouse.%sList{Values: hasAnyValues},
+			},
+		}
+	}
+
+	// Priority 4: length operators
+	if lengthEq != nil {
+		return &clickhouse.%s{
+			Filter: &clickhouse.%s_LengthEq{LengthEq: *lengthEq},
+		}
+	}
+	if lengthGt != nil {
+		return &clickhouse.%s{
+			Filter: &clickhouse.%s_LengthGt{LengthGt: *lengthGt},
+		}
+	}
+	if lengthGte != nil {
+		return &clickhouse.%s{
+			Filter: &clickhouse.%s_LengthGte{LengthGte: *lengthGte},
+		}
+	}
+	if lengthLt != nil {
+		return &clickhouse.%s{
+			Filter: &clickhouse.%s_LengthLt{LengthLt: *lengthLt},
+		}
+	}
+	if lengthLte != nil {
+		return &clickhouse.%s{
+			Filter: &clickhouse.%s_LengthLte{LengthLte: *lengthLte},
+		}
+	}
+
+	return nil
+}
+
+`, ft.Name, ft.Name, funcName, elementType, elementType, ft.Name,
+		ft.Name, ft.Name,
+		ft.Name, ft.Name, elementTypePascal,
+		ft.Name, ft.Name, elementTypePascal,
+		ft.Name, ft.Name,
 		ft.Name, ft.Name,
 		ft.Name, ft.Name,
 		ft.Name, ft.Name,

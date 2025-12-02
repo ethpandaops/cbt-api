@@ -307,7 +307,16 @@ func generateBuilderArgs(params []Param, filterType string) string {
 	// Generate args in expected order based on filter type
 	var args []string
 
-	if strings.HasPrefix(filterType, "Map") {
+	if strings.HasPrefix(filterType, "Array") {
+		// Array filters: has, has_all_values, has_any_values, length_eq, length_gt, length_gte, length_lt, length_lte
+		for _, op := range []string{"has", "has_all_values", "has_any_values", "length_eq", "length_gt", "length_gte", "length_lt", "length_lte"} {
+			if arg, ok := argMap[op]; ok {
+				args = append(args, arg)
+			} else {
+				args = append(args, "nil")
+			}
+		}
+	} else if strings.HasPrefix(filterType, "Map") {
 		// Map filters: hasKey, notHasKey, hasAnyKey, hasAllKeys
 		for _, op := range []string{"has_key", "not_has_key", "has_any_key", "has_all_keys"} {
 			if arg, ok := argMap[op]; ok {

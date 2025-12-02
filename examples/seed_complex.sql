@@ -6,7 +6,7 @@ INSERT INTO fct_data_types_complex (
     string_value, fixed_string_value, lowcardinality_string, nullable_string,
     enum8_value, enum16_value,
     bool_value,
-    array_uint32, array_string, array_nullable,
+    array_int32, array_int64, array_uint32, array_uint64, array_string, array_nullable,
     map_string_string, map_string_uint64,
     uuid_value, ipv4_value, ipv6_value,
     nullable_uuid, nullable_ipv4
@@ -18,7 +18,7 @@ INSERT INTO fct_data_types_complex (
     'test string 1', '0123456789abcdef0123456789abcdef', 'category_a', 'nullable text',
     'option1', 'value1',
     true,
-    [1, 2, 3, 4, 5], ['apple', 'banana', 'cherry'], [100, NULL, 300],
+    [-1, -2, 3], [-100, -200, 300], [1, 2, 3, 4, 5], [100, 200, 300], ['apple', 'banana', 'cherry'], [100, NULL, 300],
     {'key1': 'value1', 'key2': 'value2'}, {'metric1': 100, 'metric2': 200},
     '550e8400-e29b-41d4-a716-446655440000', '192.168.1.1', '2001:0db8:85a3:0000:0000:8a2e:0370:7334',
     '550e8400-e29b-41d4-a716-446655440001', '10.0.0.1'
@@ -30,7 +30,7 @@ INSERT INTO fct_data_types_complex (
     'test string 2', 'fedcba9876543210fedcba9876543210', 'category_b', NULL,
     'option2', 'value2',
     false,
-    [10, 20, 30], ['dog', 'elephant', 'fox'], [NULL, 200, NULL],
+    [-10, 20, -30], [1000, -2000, 3000], [10, 20, 30], [1000, 2000, 3000], ['dog', 'elephant', 'fox'], [NULL, 200, NULL],
     {'foo': 'bar', 'baz': 'qux'}, {'score': 500, 'count': 1000},
     '660e8400-e29b-41d4-a716-446655440000', '172.16.0.1', '2001:0db8:85a3::8a2e:0370:7335',
     NULL, NULL
