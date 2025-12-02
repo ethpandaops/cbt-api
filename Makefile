@@ -247,7 +247,7 @@ run: build-binary
 	  --enable-api \
 	  --api-table-prefixes $$API_PREFIXES \
 	  --api-base-path $$API_BASE \
-	  --uint64-to-string "*.consensus_payload_value,*.execution_payload_value" \
+	  --bigint-to-string "*.consensus_payload_value,*.execution_payload_value" \
 	  --verbose \
 	  --debug
 	@printf "$(CYAN)==> Compiling proto files to Go...$(RESET)\n"
