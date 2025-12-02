@@ -24,6 +24,7 @@ type FilterType struct {
 	BaseType   string   // "uint32"
 	IsNullable bool     // false
 	IsMap      bool     // false
+	IsArray    bool     // false
 	Operators  []string // ["eq", "ne", "lt", "lte", "gt", "gte", "in", "not_in"]
 }
 
@@ -369,6 +370,68 @@ func getKnownFilterTypes() map[string]*FilterType {
 			IsNullable: false,
 			IsMap:      true,
 			Operators:  []string{"has_key", "not_has_key", "has_any_key", "has_all_keys"},
+		},
+
+		// Array filters
+		"ArrayUInt32Filter": {
+			Name:       "ArrayUInt32Filter",
+			BaseType:   "[]uint32",
+			IsNullable: false,
+			IsMap:      false,
+			IsArray:    true,
+			Operators: []string{
+				"has", "has_all", "has_any",
+				"length_eq", "length_gt", "length_gte", "length_lt", "length_lte",
+				"is_empty", "is_not_empty",
+			},
+		},
+		"ArrayUInt64Filter": {
+			Name:       "ArrayUInt64Filter",
+			BaseType:   "[]uint64",
+			IsNullable: false,
+			IsMap:      false,
+			IsArray:    true,
+			Operators: []string{
+				"has", "has_all", "has_any",
+				"length_eq", "length_gt", "length_gte", "length_lt", "length_lte",
+				"is_empty", "is_not_empty",
+			},
+		},
+		"ArrayInt32Filter": {
+			Name:       "ArrayInt32Filter",
+			BaseType:   "[]int32",
+			IsNullable: false,
+			IsMap:      false,
+			IsArray:    true,
+			Operators: []string{
+				"has", "has_all", "has_any",
+				"length_eq", "length_gt", "length_gte", "length_lt", "length_lte",
+				"is_empty", "is_not_empty",
+			},
+		},
+		"ArrayInt64Filter": {
+			Name:       "ArrayInt64Filter",
+			BaseType:   "[]int64",
+			IsNullable: false,
+			IsMap:      false,
+			IsArray:    true,
+			Operators: []string{
+				"has", "has_all", "has_any",
+				"length_eq", "length_gt", "length_gte", "length_lt", "length_lte",
+				"is_empty", "is_not_empty",
+			},
+		},
+		"ArrayStringFilter": {
+			Name:       "ArrayStringFilter",
+			BaseType:   "[]string",
+			IsNullable: false,
+			IsMap:      false,
+			IsArray:    true,
+			Operators: []string{
+				"has", "has_all", "has_any",
+				"length_eq", "length_gt", "length_gte", "length_lt", "length_lte",
+				"is_empty", "is_not_empty",
+			},
 		},
 	}
 }

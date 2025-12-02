@@ -455,13 +455,12 @@ func TestParseParam(t *testing.T) {
 					},
 				},
 			},
-			// Note: Current implementation has a bug - it checks single-part operators first
-			// So "slot_not_in" is parsed as field="slot_not", operator="in"
-			// rather than field="slot", operator="not_in"
+			// Two-part operators are now correctly parsed before single-part operators
+			// So "slot_not_in" is parsed as field="slot", operator="not_in"
 			expected: Param{
 				Name:     "slot_not_in",
-				Field:    "slot_not",
-				Operator: "in",
+				Field:    "slot",
+				Operator: "not_in",
 				Type:     "string",
 				Format:   "",
 				GoType:   "*string",

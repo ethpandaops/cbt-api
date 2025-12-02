@@ -147,37 +147,43 @@ func parseParam(p *openapi3.Parameter) Param {
 	// Extract field and operator from underscore notation
 	// "slot_gte" → field: "slot", operator: "gte"
 	// "slot_not_in_values" → field: "slot", operator: "not_in_values"
+	// "slots_length_eq" → field: "slots", operator: "length_eq"
 	parts := strings.Split(p.Name, "_")
+	operatorFound := false
+
 	if len(parts) >= 2 {
-		// Check for three-part operators first (e.g., "not_in_values")
-		if len(parts) >= 4 {
+		// Check for three-part operators first (e.g., "not_in_values", "has_all_values")
+		if len(parts) >= 4 && !operatorFound {
 			lastThreeParts := parts[len(parts)-3] + "_" + parts[len(parts)-2] + "_" + parts[len(parts)-1]
 			if isFilterOperator(lastThreeParts) {
 				param.Operator = lastThreeParts
 				param.Field = strings.Join(parts[:len(parts)-3], "_")
-
-				return param
+				operatorFound = true
 			}
 		}
 
-		// Check if last part is an operator
-		lastPart := parts[len(parts)-1]
-		if isFilterOperator(lastPart) {
-			param.Operator = lastPart
-			param.Field = strings.Join(parts[:len(parts)-1], "_")
-		} else if len(parts) >= 3 {
-			// Check for two-part operators like "not_in", "is_null"
+		// Check for two-part operators (e.g., "length_eq", "not_in", "is_null")
+		// This must come before single-part check to handle cases like "slots_length_eq"
+		// where "eq" is also a valid operator but "length_eq" is the intended one
+		if len(parts) >= 3 && !operatorFound {
 			lastTwoParts := parts[len(parts)-2] + "_" + parts[len(parts)-1]
 			if isFilterOperator(lastTwoParts) {
 				param.Operator = lastTwoParts
 				param.Field = strings.Join(parts[:len(parts)-2], "_")
+				operatorFound = true
+			}
+		}
+
+		// Check if last part is a single-part operator
+		if !operatorFound {
+			lastPart := parts[len(parts)-1]
+			if isFilterOperator(lastPart) {
+				param.Operator = lastPart
+				param.Field = strings.Join(parts[:len(parts)-1], "_")
 			} else {
 				// Not a filter parameter (e.g., page_size, page_token)
 				param.Field = p.Name
 			}
-		} else {
-			// Not a filter parameter
-			param.Field = p.Name
 		}
 	} else {
 		// Single word parameter
@@ -231,6 +237,18 @@ func isFilterOperator(s string) bool {
 		"not_has_key":  true,
 		"has_any_key":  true,
 		"has_all_keys": true,
+
+		// Array filter operators
+		"has":            true,
+		"has_all_values": true,
+		"has_any_values": true,
+		"length_eq":      true,
+		"length_gt":      true,
+		"length_gte":     true,
+		"length_lt":      true,
+		"length_lte":     true,
+		"is_empty":       true,
+		"is_not_empty":   true,
 	}
 
 	return operators[s]
