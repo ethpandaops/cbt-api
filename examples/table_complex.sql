@@ -27,8 +27,11 @@ CREATE TABLE IF NOT EXISTS fct_data_types_complex (
     -- Boolean (stored as UInt8)
     bool_value Bool COMMENT 'Boolean type (UInt8 internally)',
 
-    -- Array types
-    array_uint32 Array(UInt32) COMMENT 'Array of unsigned integers',
+    -- Array types (all variants to ensure complete filter type generation)
+    array_int32 Array(Int32) COMMENT 'Array of signed 32-bit integers',
+    array_int64 Array(Int64) COMMENT 'Array of signed 64-bit integers',
+    array_uint32 Array(UInt32) COMMENT 'Array of unsigned 32-bit integers',
+    array_uint64 Array(UInt64) COMMENT 'Array of unsigned 64-bit integers',
     array_string Array(String) COMMENT 'Array of strings',
     array_nullable Array(Nullable(UInt64)) COMMENT 'Array with nullable elements',
 
