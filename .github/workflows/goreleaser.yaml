@@ -80,8 +80,11 @@ jobs:
           EOF
       - name: Install tools, generate code and build
         run: |
+          # Extract tag name for consistent versioning across all build artifacts
+          TAG_NAME=${GITHUB_REF#refs/tags/}
           make install-tools
-          make build
+          # Pass VERSION explicitly to ensure OpenAPI spec version matches the release tag
+          make build VERSION=${TAG_NAME}
       - name: Set up QEMU
         uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
       - name: Set up Docker Context for Buildx
