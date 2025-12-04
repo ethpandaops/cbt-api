@@ -144,11 +144,11 @@ generate: .build-tools .openapi .generate-descriptors .generate-server
 proto: .discover-tables .proto
 	@printf "$(GREEN)✓ Proto generation complete$(RESET)\n"
 
-# Version information
+# Version information (all overridable via environment variables for CI builds)
 VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo "dev")
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "dev")
 BUILD_DATE := $(shell date -u '+%Y-%m-%d_%H:%M:%S')
-DIRTY_SUFFIX := $(shell git diff --quiet || echo "-dirty")
+DIRTY_SUFFIX ?= $(shell git diff --quiet || echo "-dirty")
 
 # Build ldflags
 LDFLAGS := -s -w \
