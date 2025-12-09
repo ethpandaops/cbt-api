@@ -170,6 +170,9 @@ func createClickHouseOptions(cfg *config.ClickHouseConfig, parsedURL *url.URL) *
 		Settings: clickhouse.Settings{
 			"max_execution_time": cfg.MaxExecutionTime,
 		},
+		Compression: &clickhouse.Compression{
+			Method: clickhouse.CompressionLZ4,
+		},
 		DialTimeout: cfg.DialTimeout,
 		ReadTimeout: cfg.ReadTimeout,
 	}
