@@ -58,6 +58,26 @@ func TestExtractTableName(t *testing.T) {
 			expected: "my_table",
 		},
 		{
+			name:     "quoted database and table",
+			query:    `SELECT * FROM "mainnet"."fct_blocks"`,
+			expected: "fct_blocks",
+		},
+		{
+			name:     "backtick quoted database and table",
+			query:    "SELECT * FROM `mainnet`.`fct_blocks`",
+			expected: "fct_blocks",
+		},
+		{
+			name:     "mixed quotes - db quoted",
+			query:    `SELECT * FROM "mainnet".fct_blocks`,
+			expected: "fct_blocks",
+		},
+		{
+			name:     "mixed quotes - table quoted",
+			query:    `SELECT * FROM mainnet."fct_blocks"`,
+			expected: "fct_blocks",
+		},
+		{
 			name:     "complex query with joins",
 			query:    "SELECT a.id FROM users a JOIN orders b ON a.id = b.user_id",
 			expected: "users",

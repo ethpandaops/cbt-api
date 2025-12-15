@@ -19,8 +19,8 @@ import (
 )
 
 // tableNameRegex matches table names in FROM and INTO clauses.
-// Handles: FROM table, FROM db.table, FROM "table", FROM `table`.
-var tableNameRegex = regexp.MustCompile(`(?i)\b(?:FROM|INTO)\s+["'\x60]?(?:(\w+)\.)?(\w+)["'\x60]?`)
+// Handles: FROM table, FROM db.table, FROM "db"."table", FROM `db`.`table`.
+var tableNameRegex = regexp.MustCompile(`(?i)\b(?:FROM|INTO)\s+(?:["'\x60]?(\w+)["'\x60]?\.)?["'\x60]?(\w+)["'\x60]?`)
 
 // extractTableName extracts the table name from a SQL query.
 func extractTableName(query string) string {
