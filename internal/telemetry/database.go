@@ -3,6 +3,7 @@ package telemetry
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -17,6 +18,20 @@ import (
 	"github.com/ethpandaops/cbt-api/internal/database"
 )
 
+// tableNameRegex matches table names in FROM and INTO clauses.
+// Handles: FROM table, FROM db.table, FROM "db"."table", FROM `db`.`table`.
+var tableNameRegex = regexp.MustCompile(`(?i)\b(?:FROM|INTO)\s+(?:["'\x60]?(\w+)["'\x60]?\.)?["'\x60]?(\w+)["'\x60]?`)
+
+// extractTableName extracts the table name from a SQL query.
+func extractTableName(query string) string {
+	matches := tableNameRegex.FindStringSubmatch(query)
+	if len(matches) >= 3 && matches[2] != "" {
+		return matches[2]
+	}
+
+	return "unknown"
+}
+
 var (
 	clickhouseQueryDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -26,7 +41,7 @@ var (
 			Help:      "ClickHouse query duration in seconds",
 			Buckets:   []float64{.001, .005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10},
 		},
-		[]string{"operation", "sql_operation"},
+		[]string{"operation", "sql_operation", "table"},
 	)
 
 	clickhouseQueriesTotal = prometheus.NewCounterVec(
@@ -36,7 +51,7 @@ var (
 			Name:      "queries_total",
 			Help:      "Total number of ClickHouse queries",
 		},
-		[]string{"operation", "sql_operation"},
+		[]string{"operation", "sql_operation", "table"},
 	)
 
 	clickhouseQueryErrorsTotal = prometheus.NewCounterVec(
@@ -46,7 +61,7 @@ var (
 			Name:      "query_errors_total",
 			Help:      "Total number of ClickHouse query errors",
 		},
-		[]string{"operation", "sql_operation"},
+		[]string{"operation", "sql_operation", "table"},
 	)
 
 	clickhouseRowsReturned = prometheus.NewHistogramVec(
@@ -57,7 +72,7 @@ var (
 			Help:      "Number of rows returned by ClickHouse queries",
 			Buckets:   []float64{1, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000},
 		},
-		[]string{"operation", "sql_operation"},
+		[]string{"operation", "sql_operation", "table"},
 	)
 )
 
@@ -93,23 +108,24 @@ func NewTracedClient(client *database.Client, dbName string, logger logrus.Field
 func (c *TracedClient) Query(ctx context.Context, query string, args ...any) (driver.Rows, error) {
 	start := time.Now()
 	sqlOp := extractSQLOperation(query)
+	table := extractTableName(query)
 
 	ctx, span := c.startSpan(ctx, "Query", query, args...)
 	defer span.End()
 
 	// Record query count
-	clickhouseQueriesTotal.WithLabelValues("Query", sqlOp).Inc()
+	clickhouseQueriesTotal.WithLabelValues("Query", sqlOp, table).Inc()
 
 	rows, err := c.client.Query(ctx, query, args...)
 	duration := time.Since(start).Seconds()
 
 	// Record query duration
-	clickhouseQueryDuration.WithLabelValues("Query", sqlOp).Observe(duration)
+	clickhouseQueryDuration.WithLabelValues("Query", sqlOp, table).Observe(duration)
 
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		clickhouseQueryErrorsTotal.WithLabelValues("Query", sqlOp).Inc()
+		clickhouseQueryErrorsTotal.WithLabelValues("Query", sqlOp, table).Inc()
 
 		return nil, err
 	}
@@ -119,6 +135,7 @@ func (c *TracedClient) Query(ctx context.Context, query string, args ...any) (dr
 		span:      span,
 		operation: "Query",
 		sqlOp:     sqlOp,
+		table:     table,
 	}, nil
 }
 
@@ -126,18 +143,19 @@ func (c *TracedClient) Query(ctx context.Context, query string, args ...any) (dr
 func (c *TracedClient) QueryRow(ctx context.Context, query string, args ...any) driver.Row {
 	start := time.Now()
 	sqlOp := extractSQLOperation(query)
+	table := extractTableName(query)
 
 	ctx, span := c.startSpan(ctx, "QueryRow", query, args...)
 	defer span.End()
 
 	// Record query count
-	clickhouseQueriesTotal.WithLabelValues("QueryRow", sqlOp).Inc()
+	clickhouseQueriesTotal.WithLabelValues("QueryRow", sqlOp, table).Inc()
 
 	row := c.client.QueryRow(ctx, query, args...)
 	duration := time.Since(start).Seconds()
 
 	// Record query duration
-	clickhouseQueryDuration.WithLabelValues("QueryRow", sqlOp).Observe(duration)
+	clickhouseQueryDuration.WithLabelValues("QueryRow", sqlOp, table).Observe(duration)
 
 	// Note: driver.Row doesn't expose errors until Scan() is called
 	// We record the operation but can't capture row-level errors here.
@@ -150,23 +168,24 @@ func (c *TracedClient) QueryRow(ctx context.Context, query string, args ...any) 
 func (c *TracedClient) Select(ctx context.Context, dest any, query string, args ...any) error {
 	start := time.Now()
 	sqlOp := extractSQLOperation(query)
+	table := extractTableName(query)
 
 	ctx, span := c.startSpan(ctx, "Select", query, args...)
 	defer span.End()
 
 	// Record query count
-	clickhouseQueriesTotal.WithLabelValues("Select", sqlOp).Inc()
+	clickhouseQueriesTotal.WithLabelValues("Select", sqlOp, table).Inc()
 
 	err := c.client.Select(ctx, dest, query, args...)
 	duration := time.Since(start).Seconds()
 
 	// Record query duration
-	clickhouseQueryDuration.WithLabelValues("Select", sqlOp).Observe(duration)
+	clickhouseQueryDuration.WithLabelValues("Select", sqlOp, table).Observe(duration)
 
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		clickhouseQueryErrorsTotal.WithLabelValues("Select", sqlOp).Inc()
+		clickhouseQueryErrorsTotal.WithLabelValues("Select", sqlOp, table).Inc()
 
 		return err
 	}
@@ -180,23 +199,24 @@ func (c *TracedClient) Select(ctx context.Context, dest any, query string, args 
 func (c *TracedClient) Exec(ctx context.Context, query string, args ...any) error {
 	start := time.Now()
 	sqlOp := extractSQLOperation(query)
+	table := extractTableName(query)
 
 	ctx, span := c.startSpan(ctx, "Exec", query, args...)
 	defer span.End()
 
 	// Record query count
-	clickhouseQueriesTotal.WithLabelValues("Exec", sqlOp).Inc()
+	clickhouseQueriesTotal.WithLabelValues("Exec", sqlOp, table).Inc()
 
 	err := c.client.Exec(ctx, query, args...)
 	duration := time.Since(start).Seconds()
 
 	// Record query duration
-	clickhouseQueryDuration.WithLabelValues("Exec", sqlOp).Observe(duration)
+	clickhouseQueryDuration.WithLabelValues("Exec", sqlOp, table).Observe(duration)
 
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		clickhouseQueryErrorsTotal.WithLabelValues("Exec", sqlOp).Inc()
+		clickhouseQueryErrorsTotal.WithLabelValues("Exec", sqlOp, table).Inc()
 
 		return err
 	}
@@ -269,6 +289,7 @@ type tracedRows struct {
 	rowCount  int64
 	operation string
 	sqlOp     string
+	table     string
 }
 
 // Next wraps the original Next and counts rows.
@@ -283,7 +304,7 @@ func (r *tracedRows) Next() bool {
 
 		// Record rows returned metric
 		if r.rowCount > 0 {
-			clickhouseRowsReturned.WithLabelValues(r.operation, r.sqlOp).Observe(float64(r.rowCount))
+			clickhouseRowsReturned.WithLabelValues(r.operation, r.sqlOp, r.table).Observe(float64(r.rowCount))
 		}
 	}
 
@@ -295,7 +316,7 @@ func (r *tracedRows) Close() error {
 	// Record final row count if not already done
 	if r.rowCount > 0 {
 		r.span.SetAttributes(AttrDBRowsReturned.Int64(r.rowCount))
-		clickhouseRowsReturned.WithLabelValues(r.operation, r.sqlOp).Observe(float64(r.rowCount))
+		clickhouseRowsReturned.WithLabelValues(r.operation, r.sqlOp, r.table).Observe(float64(r.rowCount))
 	}
 
 	return r.Rows.Close()
