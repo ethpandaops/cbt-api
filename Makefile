@@ -163,7 +163,7 @@ build: proto generate build-binary
 build-binary:
 	@printf "$(CYAN)==> Building API server...$(RESET)\n"
 	@printf "$(CYAN)    Version: $(VERSION)-$(GIT_COMMIT)$(DIRTY_SUFFIX)$(RESET)\n"
-	@go build -ldflags "$(LDFLAGS)" -o bin/server ./cmd/server
+	@GOEXPERIMENT=jsonv2 go build -ldflags "$(LDFLAGS)" -o bin/server ./cmd/server
 	@printf "$(GREEN)✓ Server built: bin/server$(RESET)\n"
 
 # Run the API server
