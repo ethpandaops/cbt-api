@@ -323,7 +323,7 @@ func TestGenerateEndpoint(t *testing.T) {
 				"PageSize: 100,",
 				"clickhouse.BuildListFctBlockQuery(req, s.buildQueryOptions()...)",
 				"s.db.Query(ctx, sqlQuery.Query, sqlQuery.Args...)",
-				"var items []handlers.FctBlock",
+				"items := make([]handlers.FctBlock, 0, req.PageSize)",
 				"var item handlers.FctBlock",
 				"items = append(items, item)",
 				"response := handlers.ListFctBlockResponse{",

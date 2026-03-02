@@ -194,11 +194,11 @@ func protoToOpenAPI%s(p *clickhouse.%s) handlers.%s {
 
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf(`// protoToOpenAPI%s converts proto %s to OpenAPI type.
+	fmt.Fprintf(&sb, `// protoToOpenAPI%s converts proto %s to OpenAPI type.
 func protoToOpenAPI%s(p *clickhouse.%s) handlers.%s {
 	result := handlers.%s{}
 
-`, itemType, itemType, itemType, itemType, itemType, itemType))
+`, itemType, itemType, itemType, itemType, itemType, itemType)
 
 	// Generate field mappings
 	for _, field := range schema.Fields {

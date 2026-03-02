@@ -9,6 +9,7 @@ builds:
   - id: linux-amd64
     env:
       - CGO_ENABLED=0
+      - GOEXPERIMENT=jsonv2
     main: ./cmd/server
     binary: server
     goos:
@@ -24,6 +25,7 @@ builds:
   - id: linux-arm64
     env:
       - CGO_ENABLED=0
+      - GOEXPERIMENT=jsonv2
     main: ./cmd/server
     binary: server
     goos:

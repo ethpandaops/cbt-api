@@ -118,7 +118,7 @@ install-tools:
 	fi
 	@go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 	@go install github.com/kollalabs/protoc-gen-openapi@latest
-	@go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+	@go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.5.0
 	@go get github.com/getkin/kin-openapi/openapi3@latest
 	@go get gopkg.in/yaml.v3@latest
 	@printf "$(GREEN)✓ Tools installed$(RESET)\n"
@@ -163,7 +163,7 @@ build: proto generate build-binary
 build-binary:
 	@printf "$(CYAN)==> Building API server...$(RESET)\n"
 	@printf "$(CYAN)    Version: $(VERSION)-$(GIT_COMMIT)$(DIRTY_SUFFIX)$(RESET)\n"
-	@go build -ldflags "$(LDFLAGS)" -o bin/server ./cmd/server
+	@GOEXPERIMENT=jsonv2 go build -ldflags "$(LDFLAGS)" -o bin/server ./cmd/server
 	@printf "$(GREEN)✓ Server built: bin/server$(RESET)\n"
 
 # Run the API server
