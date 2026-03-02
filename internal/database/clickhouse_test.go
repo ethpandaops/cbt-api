@@ -460,6 +460,9 @@ func TestCreateClickHouseOptions(t *testing.T) {
 		maxExecutionTime   int
 		dialTimeout        time.Duration
 		insecureSkipVerify bool
+		maxOpenConns       int
+		maxIdleConns       int
+		connMaxLifetime    time.Duration
 	}{
 		{
 			name:              "native protocol",
@@ -469,6 +472,9 @@ func TestCreateClickHouseOptions(t *testing.T) {
 			expectTLS:         false,
 			maxExecutionTime:  60,
 			dialTimeout:       10 * time.Second,
+			maxOpenConns:      20,
+			maxIdleConns:      10,
+			connMaxLifetime:   5 * time.Minute,
 		},
 		{
 			name:              "native with TLS (port 9440)",
@@ -500,6 +506,9 @@ func TestCreateClickHouseOptions(t *testing.T) {
 				MaxExecutionTime:   tt.maxExecutionTime,
 				DialTimeout:        tt.dialTimeout,
 				InsecureSkipVerify: tt.insecureSkipVerify,
+				MaxOpenConns:       tt.maxOpenConns,
+				MaxIdleConns:       tt.maxIdleConns,
+				ConnMaxLifetime:    tt.connMaxLifetime,
 			}
 
 			opts := createClickHouseOptions(cfg, parsedURL)
@@ -507,6 +516,9 @@ func TestCreateClickHouseOptions(t *testing.T) {
 			require.NotNil(t, opts)
 			assert.Equal(t, tt.database, opts.Auth.Database)
 			assert.Equal(t, tt.dialTimeout, opts.DialTimeout)
+			assert.Equal(t, tt.maxOpenConns, opts.MaxOpenConns)
+			assert.Equal(t, tt.maxIdleConns, opts.MaxIdleConns)
+			assert.Equal(t, tt.connMaxLifetime, opts.ConnMaxLifetime)
 
 			// Check protocol
 			if tt.expectNativeProto {

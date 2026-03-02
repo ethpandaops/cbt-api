@@ -77,8 +77,11 @@ func NewClient(cfg *config.ClickHouseConfig, logger logrus.FieldLogger) (*Client
 	}
 
 	log.WithFields(logrus.Fields{
-		"database": cfg.Database,
-		"host":     parsedDSN.Host,
+		"database":          cfg.Database,
+		"host":              parsedDSN.Host,
+		"max_open_conns":    cfg.MaxOpenConns,
+		"max_idle_conns":    cfg.MaxIdleConns,
+		"conn_max_lifetime": cfg.ConnMaxLifetime,
 	}).Info("ClickHouse client initialised")
 
 	return &Client{
@@ -170,8 +173,11 @@ func createClickHouseOptions(cfg *config.ClickHouseConfig, parsedURL *url.URL) *
 		Settings: clickhouse.Settings{
 			"max_execution_time": cfg.MaxExecutionTime,
 		},
-		DialTimeout: cfg.DialTimeout,
-		ReadTimeout: cfg.ReadTimeout,
+		DialTimeout:     cfg.DialTimeout,
+		ReadTimeout:     cfg.ReadTimeout,
+		MaxOpenConns:    cfg.MaxOpenConns,
+		MaxIdleConns:    cfg.MaxIdleConns,
+		ConnMaxLifetime: cfg.ConnMaxLifetime,
 	}
 
 	// Add TLS if using HTTPS
