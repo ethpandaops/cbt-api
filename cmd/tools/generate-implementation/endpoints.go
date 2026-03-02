@@ -100,7 +100,7 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, params handlers.%s) 
 
 	// Scan results directly into OpenAPI types
 	_, scanSpan := tracer.Start(ctx, "handler.scanResults")
-	var items []handlers.%s
+	items := make([]handlers.%s, 0, req.PageSize)
 	for rows.Next() {
 		var item handlers.%s
 		if err := rows.ScanStruct(&item); err != nil {
