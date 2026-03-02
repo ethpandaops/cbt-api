@@ -54,7 +54,7 @@ func analyzeProtos(protoPath string) (*ProtoInfo, error) {
 // This is more robust than convention-based parsing.
 func parseProtoDescriptors(descriptorPath string, info *ProtoInfo) error {
 	// Read descriptor file
-	data, err := os.ReadFile(descriptorPath)
+	data, err := os.ReadFile(descriptorPath) //nolint:gosec // CLI tool, path from own flags
 	if err != nil {
 		return fmt.Errorf("reading descriptor file: %w", err)
 	}

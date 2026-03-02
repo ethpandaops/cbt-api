@@ -285,8 +285,8 @@ func generateFilterAssignments(ep Endpoint, protoInfo *ProtoInfo) string {
 		builderFunc := "build" + filterType
 		builderArgs := generateBuilderArgs(params, filterType)
 
-		sb.WriteString(fmt.Sprintf("\t// Filter: %s (%s)\n", field, filterType))
-		sb.WriteString(fmt.Sprintf("\treq.%s = %s(%s)\n",
+		sb.WriteString(fmt.Sprintf("\t// Filter: %s (%s)\n", field, filterType)) //nolint:staticcheck // template readability
+		sb.WriteString(fmt.Sprintf("\treq.%s = %s(%s)\n",                        //nolint:staticcheck // template readability
 			toPascalCase(field),
 			builderFunc,
 			builderArgs,
