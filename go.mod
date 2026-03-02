@@ -1,11 +1,11 @@
 module github.com/ethpandaops/cbt-api
 
-go 1.25.1
+go 1.26.0
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.40.3
 	github.com/getkin/kin-openapi v0.133.0
-	github.com/oapi-codegen/runtime v1.1.2
+	github.com/oapi-codegen/runtime v1.2.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rs/cors v1.11.1
 	github.com/sirupsen/logrus v1.9.3
