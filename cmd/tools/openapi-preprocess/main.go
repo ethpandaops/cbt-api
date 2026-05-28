@@ -872,7 +872,7 @@ func addAnnotationExtensions(doc *openapi3.T, annotations ProtoFieldAnnotations)
 				if annot, exists := annotations[key]; exists {
 					// Add extensions to parameter
 					if param.Extensions == nil {
-						param.Extensions = make(map[string]interface{})
+						param.Extensions = make(map[string]any)
 					}
 
 					if annot.RequiredGroup != "" {
@@ -932,8 +932,8 @@ func convertParamToFieldName(paramName string) string {
 	}
 
 	for _, suffix := range suffixes {
-		if strings.HasSuffix(paramName, suffix) {
-			return strings.TrimSuffix(paramName, suffix)
+		if before, ok := strings.CutSuffix(paramName, suffix); ok {
+			return before
 		}
 	}
 
@@ -971,14 +971,14 @@ func writeOpenAPIYAML(doc *openapi3.T, filename string) error {
 	}
 
 	// Convert to generic map
-	var jsonData map[string]interface{}
+	var jsonData map[string]any
 
 	if unmarshalErr := json.Unmarshal(data, &jsonData); unmarshalErr != nil {
 		return fmt.Errorf("unmarshal JSON: %w", unmarshalErr)
 	}
 
 	// Create ordered map to ensure openapi, info, paths, components order
-	orderedData := make(map[string]interface{})
+	orderedData := make(map[string]any)
 
 	// Add fields in correct order
 	if v, ok := jsonData["openapi"]; ok {

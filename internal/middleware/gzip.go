@@ -20,7 +20,7 @@ const (
 
 // Pool of gzip writers to reduce allocations.
 var gzipPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		w, err := gzip.NewWriterLevel(nil, DefaultGzipLevel)
 		if err != nil {
 			// Fall back to default compression if level is invalid
@@ -33,7 +33,7 @@ var gzipPool = sync.Pool{
 
 // Pool of buffers to reduce allocations.
 var bufferPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return new(bytes.Buffer)
 	},
 }

@@ -106,7 +106,7 @@ func TestRecovery(t *testing.T) {
 				assert.NotEmpty(t, logOutput)
 
 				// Parse log entry
-				var logEntry map[string]interface{}
+				var logEntry map[string]any
 
 				err := json.Unmarshal([]byte(logOutput), &logEntry)
 				require.NoError(t, err)
@@ -161,7 +161,7 @@ func TestRecovery_StackTraceIncluded(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	// Parse log entry
-	var logEntry map[string]interface{}
+	var logEntry map[string]any
 
 	err := json.Unmarshal(logBuf.Bytes(), &logEntry)
 	require.NoError(t, err)
@@ -201,7 +201,7 @@ func TestRecovery_DifferentPaths(t *testing.T) {
 			handler.ServeHTTP(rec, req)
 
 			// Parse log entry
-			var logEntry map[string]interface{}
+			var logEntry map[string]any
 
 			err := json.Unmarshal(logBuf.Bytes(), &logEntry)
 			require.NoError(t, err)
@@ -259,7 +259,7 @@ func TestRecovery_ResponseFormat(t *testing.T) {
 	assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 	// Parse JSON response
-	var response map[string]interface{}
+	var response map[string]any
 
 	err := json.Unmarshal(rec.Body.Bytes(), &response)
 	require.NoError(t, err)
