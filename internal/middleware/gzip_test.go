@@ -193,7 +193,7 @@ func TestGzip_PoolReuse(t *testing.T) {
 	}))
 
 	// Make multiple requests to test pool reuse
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		req.Header.Set("Accept-Encoding", "gzip")
 

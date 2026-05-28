@@ -462,39 +462,39 @@ func TestParseProtoDescriptors(t *testing.T) {
 			fds: &descriptorpb.FileDescriptorSet{
 				File: []*descriptorpb.FileDescriptorProto{
 					{
-						Name:    stringPtr("test.proto"),
-						Package: stringPtr("cbt"),
+						Name:    new("test.proto"),
+						Package: new("cbt"),
 						Service: []*descriptorpb.ServiceDescriptorProto{
 							{
-								Name: stringPtr("FctBlockService"),
+								Name: new("FctBlockService"),
 								Method: []*descriptorpb.MethodDescriptorProto{
 									{
-										Name:       stringPtr("List"),
-										InputType:  stringPtr(".cbt.ListFctBlockRequest"),
-										OutputType: stringPtr(".cbt.ListFctBlockResponse"),
+										Name:       new("List"),
+										InputType:  new(".cbt.ListFctBlockRequest"),
+										OutputType: new(".cbt.ListFctBlockResponse"),
 									},
 								},
 							},
 						},
 						MessageType: []*descriptorpb.DescriptorProto{
 							{
-								Name: stringPtr("ListFctBlockRequest"),
+								Name: new("ListFctBlockRequest"),
 								Field: []*descriptorpb.FieldDescriptorProto{
 									{
-										Name:     stringPtr("Slot"),
-										TypeName: stringPtr(".cbt.UInt32Filter"),
+										Name:     new("Slot"),
+										TypeName: new(".cbt.UInt32Filter"),
 									},
 									{
-										Name:     stringPtr("BlockRoot"),
-										TypeName: stringPtr(".cbt.NullableStringFilter"),
+										Name:     new("BlockRoot"),
+										TypeName: new(".cbt.NullableStringFilter"),
 									},
 								},
 							},
 							{
-								Name: stringPtr("UInt32Filter"),
+								Name: new("UInt32Filter"),
 							},
 							{
-								Name: stringPtr("NullableStringFilter"),
+								Name: new("NullableStringFilter"),
 							},
 						},
 					},
@@ -523,23 +523,23 @@ func TestParseProtoDescriptors(t *testing.T) {
 			fds: &descriptorpb.FileDescriptorSet{
 				File: []*descriptorpb.FileDescriptorProto{
 					{
-						Name:    stringPtr("test.proto"),
-						Package: stringPtr("cbt"),
+						Name:    new("test.proto"),
+						Package: new("cbt"),
 						Service: []*descriptorpb.ServiceDescriptorProto{
 							{
-								Name: stringPtr("FctBlockService"),
+								Name: new("FctBlockService"),
 								Method: []*descriptorpb.MethodDescriptorProto{
 									{
-										Name:       stringPtr("Get"),
-										InputType:  stringPtr(".cbt.GetFctBlockRequest"),
-										OutputType: stringPtr(".cbt.GetFctBlockResponse"),
+										Name:       new("Get"),
+										InputType:  new(".cbt.GetFctBlockRequest"),
+										OutputType: new(".cbt.GetFctBlockResponse"),
 									},
 								},
 							},
 						},
 						MessageType: []*descriptorpb.DescriptorProto{
 							{
-								Name: stringPtr("GetFctBlockRequest"),
+								Name: new("GetFctBlockRequest"),
 							},
 						},
 					},
@@ -563,27 +563,27 @@ func TestParseProtoDescriptors(t *testing.T) {
 			fds: &descriptorpb.FileDescriptorSet{
 				File: []*descriptorpb.FileDescriptorProto{
 					{
-						Name:    stringPtr("test.proto"),
-						Package: stringPtr("cbt"),
+						Name:    new("test.proto"),
+						Package: new("cbt"),
 						Service: []*descriptorpb.ServiceDescriptorProto{
 							{
-								Name: stringPtr("FctNodeActiveLast24HService"),
+								Name: new("FctNodeActiveLast24HService"),
 								Method: []*descriptorpb.MethodDescriptorProto{
 									{
-										Name:       stringPtr("List"),
-										InputType:  stringPtr(".cbt.ListFctNodeActiveLast24HRequest"),
-										OutputType: stringPtr(".cbt.ListFctNodeActiveLast24HResponse"),
+										Name:       new("List"),
+										InputType:  new(".cbt.ListFctNodeActiveLast24HRequest"),
+										OutputType: new(".cbt.ListFctNodeActiveLast24HResponse"),
 									},
 								},
 							},
 						},
 						MessageType: []*descriptorpb.DescriptorProto{
 							{
-								Name: stringPtr("ListFctNodeActiveLast24HRequest"),
+								Name: new("ListFctNodeActiveLast24HRequest"),
 								Field: []*descriptorpb.FieldDescriptorProto{
 									{
-										Name:     stringPtr("NodeId"),
-										TypeName: stringPtr(".cbt.StringFilter"),
+										Name:     new("NodeId"),
+										TypeName: new(".cbt.StringFilter"),
 									},
 								},
 							},
@@ -720,27 +720,27 @@ func TestAnalyzeProtos(t *testing.T) {
 		fds := &descriptorpb.FileDescriptorSet{
 			File: []*descriptorpb.FileDescriptorProto{
 				{
-					Name:    stringPtr("test.proto"),
-					Package: stringPtr("cbt"),
+					Name:    new("test.proto"),
+					Package: new("cbt"),
 					Service: []*descriptorpb.ServiceDescriptorProto{
 						{
-							Name: stringPtr("FctBlockService"),
+							Name: new("FctBlockService"),
 							Method: []*descriptorpb.MethodDescriptorProto{
 								{
-									Name:       stringPtr("List"),
-									InputType:  stringPtr(".cbt.ListFctBlockRequest"),
-									OutputType: stringPtr(".cbt.ListFctBlockResponse"),
+									Name:       new("List"),
+									InputType:  new(".cbt.ListFctBlockRequest"),
+									OutputType: new(".cbt.ListFctBlockResponse"),
 								},
 							},
 						},
 					},
 					MessageType: []*descriptorpb.DescriptorProto{
 						{
-							Name: stringPtr("ListFctBlockRequest"),
+							Name: new("ListFctBlockRequest"),
 							Field: []*descriptorpb.FieldDescriptorProto{
 								{
-									Name:     stringPtr("Slot"),
-									TypeName: stringPtr(".cbt.UInt32Filter"),
+									Name:     new("Slot"),
+									TypeName: new(".cbt.UInt32Filter"),
 								},
 							},
 						},
@@ -810,8 +810,10 @@ func TestAnalyzeProtos(t *testing.T) {
 }
 
 // Helper function for creating string pointers in tests.
+//
+//go:fix inline
 func stringPtr(s string) *string {
-	return &s
+	return new(s)
 }
 
 // Helper function for test.

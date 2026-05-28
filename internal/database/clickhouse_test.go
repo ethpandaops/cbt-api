@@ -359,7 +359,7 @@ func TestClient_ConcurrentQueries(t *testing.T) {
 
 	errChan := make(chan error, numWorkers)
 
-	for i := 0; i < numWorkers; i++ {
+	for i := range numWorkers {
 		go func(workerID int) {
 			var result uint8
 
@@ -383,7 +383,7 @@ func TestClient_ConcurrentQueries(t *testing.T) {
 	}
 
 	// Collect results
-	for i := 0; i < numWorkers; i++ {
+	for range numWorkers {
 		err := <-errChan
 		assert.NoError(t, err)
 	}
