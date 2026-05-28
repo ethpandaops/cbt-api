@@ -1,11 +1,5 @@
 name: 'Go Setup'
-description: 'Sets up Go environment with caching'
-
-inputs:
-  go-version:
-    description: 'Go version to use'
-    required: false
-    default: '1.26.0'
+description: 'Sets up Go environment with caching using version from go.mod'
 
 runs:
   using: "composite"
@@ -13,5 +7,5 @@ runs:
     - name: Set up Go
       uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
       with:
-        go-version: ${{ inputs.go-version }}
+        go-version-file: go.mod
         cache: true
