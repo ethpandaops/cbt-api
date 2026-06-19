@@ -112,6 +112,12 @@ jobs:
             echo "  prerelease: true" >> .goreleaser.yaml.new
             echo "  make_latest: false" >> .goreleaser.yaml.new
           fi
+      - name: Restore go.mod/go.sum before release
+        # `make install-tools` runs `go get ...@latest`, which mutates go.mod/go.sum
+        # in the workspace. GoReleaser validates a clean git state before releasing,
+        # so reset those tooling-induced changes back to the committed (tagged)
+        # versions to keep the release reproducible and avoid a "dirty state" abort.
+        run: git checkout -- go.mod go.sum
       - name: Run GoReleaser in Docker
         run: |
           docker run --rm \
