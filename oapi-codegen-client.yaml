@@ -1,0 +1,14 @@
+# oapi-codegen configuration for generating the importable Go client
+# See: https://github.com/oapi-codegen/oapi-codegen
+
+package: client
+
+generate:
+  models: true       # Request/response types
+  client: true       # Typed HTTP client for every endpoint
+
+output-options:
+  skip-prune: true
+  skip-fmt: false
+
+import-mapping: {}

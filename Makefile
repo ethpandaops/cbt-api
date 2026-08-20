@@ -313,6 +313,10 @@ run: build-binary
 	@printf "$(CYAN)==> Copying OpenAPI spec for embedding...$(RESET)\n"
 	@cp openapi.yaml internal/server/openapi.yaml
 	@printf "$(GREEN)✓ Server implementation generated: internal/server/implementation.go$(RESET)\n"
+	@printf "$(CYAN)==> Generating Go client from OpenAPI spec...$(RESET)\n"
+	@mkdir -p pkg/client
+	@oapi-codegen --config oapi-codegen-client.yaml openapi.yaml > pkg/client/client.gen.go
+	@printf "$(GREEN)✓ Go client generated: pkg/client/client.gen.go$(RESET)\n"
 
 # Clean generated files and build artifacts
 clean:
@@ -325,6 +329,7 @@ clean:
 	@rm -f internal/handlers/generated.go
 	@rm -f internal/server/implementation.go
 	@rm -f internal/server/openapi.yaml
+	@rm -f pkg/client/client.gen.go
 	@rm -f /tmp/cbt-api-test.log /tmp/cbt-api-test.pid config.test.yaml
 	@printf "$(GREEN)✓ Cleaned$(RESET)\n"
 

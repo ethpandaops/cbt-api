@@ -15,6 +15,15 @@ cbt-api is a **generic REST API generator** for any ClickHouse database managed 
 - `openapi.yaml` - OpenAPI 3.0 specification with flattened filter parameters
 - `internal/handlers/generated.go` - Server interface (via oapi-codegen)
 - `internal/server/implementation.go` - Complete server implementation with automatic query building
+- `pkg/client/client.gen.go` - Importable typed Go client for every endpoint (via oapi-codegen), so Go consumers call the API with generated types instead of hand-rolled HTTP and JSON structs:
+
+```go
+c, _ := client.NewClientWithResponses("https://cbt-api.example.com")
+
+resp, _ := c.AdminCbtIncrementalServiceListWithResponse(ctx, &client.AdminCbtIncrementalServiceListParams{
+    DatabaseEq: ptr("mainnet"),
+})
+```
 
 ## Quick Start
 
