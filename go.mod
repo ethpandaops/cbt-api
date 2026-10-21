@@ -1,6 +1,6 @@
 module github.com/ethpandaops/cbt-api
 
-go 1.26.3
+go 1.26.10
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.44.0
