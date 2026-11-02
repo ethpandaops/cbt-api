@@ -202,8 +202,7 @@ func protoToOpenAPI%s(p *clickhouse.%s) handlers.%s {
 
 	// Generate field mappings
 	for _, field := range schema.Fields {
-		fieldName := toPascalCase(field.Name)
-		sb.WriteString(g.generateFieldMapping(fieldName, field.Type, field.Nullable))
+		sb.WriteString(g.generateFieldMapping(field.Name, field.Type, field.Nullable))
 	}
 
 	sb.WriteString(`	return result
@@ -215,7 +214,12 @@ func protoToOpenAPI%s(p *clickhouse.%s) handlers.%s {
 }
 
 // generateFieldMapping generates field mapping code for proto→OpenAPI conversion.
-func (g *CodeGenerator) generateFieldMapping(fieldName string, fieldType string, nullable bool) string {
+// column is the snake_case column name; the OpenAPI and proto structs name it differently
+// when it has an underscore before a digit (custody_4_peer_count → Custody4PeerCount and Custody_4PeerCount).
+func (g *CodeGenerator) generateFieldMapping(column string, fieldType string, nullable bool) string {
+	fieldName := toPascalCase(column)
+	protoName := toProtoGoName(column)
+
 	if nullable {
 		// Nullable fields use wrapperspb in proto
 		// Proto: *wrapperspb.StringValue → OpenAPI: *string (oapi-codegen uses pointers)
@@ -223,14 +227,14 @@ func (g *CodeGenerator) generateFieldMapping(fieldName string, fieldType string,
 		val := p.%s.GetValue()
 		result.%s = &val
 	}
-`, fieldName, fieldName, fieldName)
+`, protoName, protoName, fieldName)
 	}
 
 	// Check if field is a slice - slices are assigned directly (no &)
 	// Proto: []string → OpenAPI: []string (after fixArrayPointers)
 	if fieldType == "array" {
 		return fmt.Sprintf(`	result.%s = p.%s
-`, fieldName, fieldName)
+`, fieldName, protoName)
 	}
 
 	// Check if field is a map - maps are assigned directly (no &)
@@ -238,13 +242,13 @@ func (g *CodeGenerator) generateFieldMapping(fieldName string, fieldType string,
 	// Maps are reference types in Go, taking their address creates double pointers
 	if fieldType == "object" {
 		return fmt.Sprintf(`	result.%s = p.%s
-`, fieldName, fieldName)
+`, fieldName, protoName)
 	}
 
 	// Non-nullable fields need address taken
 	// Proto: uint32 → OpenAPI: *uint32 (oapi-codegen generates all fields as pointers with omitempty)
 	return fmt.Sprintf(`	result.%s = &p.%s
-`, fieldName, fieldName)
+`, fieldName, protoName)
 }
 
 // generateUtilities generates utility functions for HTTP handling.

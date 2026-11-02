@@ -88,7 +88,7 @@ func TestCodeGenerator_generateFieldMapping(t *testing.T) {
 	}{
 		{
 			name:      "nullable field",
-			fieldName: "Slot",
+			fieldName: "slot",
 			nullable:  true,
 			expected: []string{
 				"if p.Slot != nil {",
@@ -98,10 +98,29 @@ func TestCodeGenerator_generateFieldMapping(t *testing.T) {
 		},
 		{
 			name:      "non-nullable field",
-			fieldName: "BlockRoot",
+			fieldName: "block_root",
 			nullable:  false,
 			expected: []string{
 				"result.BlockRoot = &p.BlockRoot",
+			},
+		},
+		{
+			// protoc-gen-go keeps an underscore before a digit; oapi-codegen drops it.
+			name:      "non-nullable field with underscore before digit",
+			fieldName: "custody_9_127_peer_count",
+			nullable:  false,
+			expected: []string{
+				"result.Custody9127PeerCount = &p.Custody_9_127PeerCount",
+			},
+		},
+		{
+			name:      "nullable field with underscore before digit",
+			fieldName: "custody_4_latency_ms",
+			nullable:  true,
+			expected: []string{
+				"if p.Custody_4LatencyMs != nil {",
+				"val := p.Custody_4LatencyMs.GetValue()",
+				"result.Custody4LatencyMs = &val",
 			},
 		},
 	}

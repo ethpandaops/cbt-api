@@ -241,6 +241,30 @@ func TestGenerateFilterAssignments(t *testing.T) {
 			notInCode: []string{},
 		},
 		{
+			// protoc-gen-go keeps an underscore before a digit; oapi-codegen drops it.
+			name: "filter on column with underscore before digit",
+			endpoint: Endpoint{
+				TableName: "fct_peer_count",
+				Parameters: []Param{
+					{Name: "custody_5_8_peer_count_gte", Field: "custody_5_8_peer_count", Operator: "gte"},
+				},
+			},
+			protoInfo: &ProtoInfo{
+				RequestFields: map[string]map[string]string{
+					"fct_peer_count": {
+						"custody_5_8_peer_count": "UInt32Filter",
+					},
+				},
+			},
+			expectedInCode: []string{
+				"req.Custody_5_8PeerCount = buildUInt32Filter(",
+				"params.Custody58PeerCountGte",
+			},
+			notInCode: []string{
+				"req.Custody58PeerCount",
+			},
+		},
+		{
 			name: "endpoint with unmapped filter",
 			endpoint: Endpoint{
 				TableName: "fct_block",
