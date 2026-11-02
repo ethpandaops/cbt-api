@@ -238,7 +238,7 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, %s %s) {
 		ep.HandlerName, pathParamName, pathParamType,
 		ep.HandlerName, ep.HandlerName, pathParamName,
 		requestType,
-		toPascalCase(pathParamName), pathParamName,
+		toProtoGoName(pathParamName), pathParamName,
 		queryBuilder,
 		itemType)
 }
@@ -287,7 +287,7 @@ func generateFilterAssignments(ep Endpoint, protoInfo *ProtoInfo) string {
 
 		sb.WriteString(fmt.Sprintf("\t// Filter: %s (%s)\n", field, filterType)) //nolint:staticcheck // template readability
 		sb.WriteString(fmt.Sprintf("\treq.%s = %s(%s)\n",                        //nolint:staticcheck // template readability
-			toPascalCase(field),
+			toProtoGoName(field),
 			builderFunc,
 			builderArgs,
 		))

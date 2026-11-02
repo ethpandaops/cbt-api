@@ -464,6 +464,48 @@ func toSnakeCase(s string) string {
 	return strings.ToLower(result.String())
 }
 
+// toProtoGoName returns the Go struct field name protoc-gen-go generates for a proto field.
+// It differs from toPascalCase when an underscore precedes a digit: "custody_4_peer_count" → "Custody_4PeerCount".
+// Port of GoCamelCase from google.golang.org/protobuf/internal/strs, which protoc-gen-go uses and which is not exported.
+func toProtoGoName(s string) string {
+	isLower := func(c byte) bool { return 'a' <= c && c <= 'z' }
+	isDigit := func(c byte) bool { return '0' <= c && c <= '9' }
+
+	var b []byte
+
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+
+		switch {
+		case c == '.' && i+1 < len(s) && isLower(s[i+1]):
+			// Skip over '.' in ".{{lowercase}}".
+		case c == '.':
+			b = append(b, '_')
+		case c == '_' && (i == 0 || s[i-1] == '.'):
+			// Convert initial '_' to ensure we start with a capital letter.
+			b = append(b, 'X')
+		case c == '_' && i+1 < len(s) && isLower(s[i+1]):
+			// Skip over '_' in "_{{lowercase}}".
+		case isDigit(c):
+			b = append(b, c)
+		default:
+			// The next word starts upper case, followed by its lower case letters.
+			// An '_' not followed by a lower case letter is kept as is.
+			if isLower(c) {
+				c -= 'a' - 'A'
+			}
+
+			b = append(b, c)
+
+			for ; i+1 < len(s) && isLower(s[i+1]); i++ {
+				b = append(b, s[i+1])
+			}
+		}
+	}
+
+	return string(b)
+}
+
 // toPascalCase converts snake_case to PascalCase.
 // Handles numeric prefixes: "50ms" → "50Ms".
 func toPascalCase(s string) string {
