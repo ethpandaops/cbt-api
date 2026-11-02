@@ -27,8 +27,10 @@ import (
 // ProtoDescriptions maps service name -> field name -> description.
 type ProtoDescriptions map[string]map[string]string
 
-// ProtoFieldTypes maps field name -> google.protobuf wrapper type (e.g., "DoubleValue").
-type ProtoFieldTypes map[string]string
+// ProtoFieldTypes maps message name -> field name -> google.protobuf wrapper type (e.g., "DoubleValue").
+// Wrapper types are tracked per message because the same column name can have a different
+// type in each table (e.g., avg_gas_used is UInt64 in one table and Nullable(Float64) in another).
+type ProtoFieldTypes map[string]map[string]string
 
 // FieldAnnotations holds custom ClickHouse annotations for a field.
 type FieldAnnotations struct {
@@ -74,6 +76,7 @@ var wrapperTypeMappings = map[string]WrapperTypeMapping{
 var (
 	servicePattern      = regexp.MustCompile(`service\s+(\w+)`)
 	messagePattern      = regexp.MustCompile(`^message\s+(List\w+Request|Get\w+Request|Fct\w+|Dim\w+|Int\w+)`)
+	anyMessagePattern   = regexp.MustCompile(`^message\s+(\w+)`)
 	fieldCommentPattern = regexp.MustCompile(`^\s*//\s*(.+)`)
 	fieldPattern        = regexp.MustCompile(`^\s*(?:\w+)\s+(\w+)\s+=\s+\d+`)
 	wrapperFieldPattern = regexp.MustCompile(`^\s*google\.protobuf\.(\w+)\s+(\w+)\s+=\s+\d+`)
@@ -232,10 +235,16 @@ func parseProtoFile(filename string, descriptions ProtoDescriptions, fieldTypes 
 
 	scanner := bufio.NewScanner(file)
 
-	var currentMessage, lastComment string
+	// currentMessage gates description parsing; enclosingMessage is the message
+	// the current line belongs to, whatever its name, and keys wrapper types.
+	var currentMessage, enclosingMessage, lastComment string
 
 	for scanner.Scan() {
 		line := scanner.Text()
+
+		if matches := anyMessagePattern.FindStringSubmatch(line); matches != nil {
+			enclosingMessage = matches[1]
+		}
 
 		// Check for message definition
 		if matches := messagePattern.FindStringSubmatch(line); matches != nil {
@@ -253,7 +262,12 @@ func parseProtoFile(filename string, descriptions ProtoDescriptions, fieldTypes 
 		if matches := wrapperFieldPattern.FindStringSubmatch(line); matches != nil {
 			wrapperType := matches[1] // e.g., "DoubleValue"
 			fieldName := matches[2]   // e.g., "meta_client_geo_longitude"
-			fieldTypes[fieldName] = wrapperType
+
+			if _, ok := fieldTypes[enclosingMessage]; !ok {
+				fieldTypes[enclosingMessage] = make(map[string]string)
+			}
+
+			fieldTypes[enclosingMessage][fieldName] = wrapperType
 
 			continue
 		}
@@ -487,10 +501,22 @@ func fixWrapperTypes(doc *openapi3.T, fieldTypes ProtoFieldTypes) int {
 		return 0
 	}
 
+	// Schemas are named after their proto message, but fixSchemaNames has already
+	// capitalized letters after digits, so key the proto messages the same way.
+	messageFieldTypes := make(map[string]map[string]string, len(fieldTypes))
+	for messageName, fields := range fieldTypes {
+		messageFieldTypes[fixCapitalization(messageName)] = fields
+	}
+
 	fixed := 0
 
-	for _, schemaRef := range doc.Components.Schemas {
+	for schemaName, schemaRef := range doc.Components.Schemas {
 		if schemaRef.Value == nil {
+			continue
+		}
+
+		fields, ok := messageFieldTypes[schemaName]
+		if !ok {
 			continue
 		}
 
@@ -499,8 +525,8 @@ func fixWrapperTypes(doc *openapi3.T, fieldTypes ProtoFieldTypes) int {
 				continue
 			}
 
-			// Check if we have wrapper type info for this field
-			wrapperType, ok := fieldTypes[propName]
+			// Check if this message declares the field with a wrapper type
+			wrapperType, ok := fields[propName]
 			if !ok {
 				continue
 			}

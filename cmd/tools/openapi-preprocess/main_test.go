@@ -359,7 +359,7 @@ func TestParseProtoFile(t *testing.T) {
 		name               string
 		protoContent       string
 		expectedDesc       map[string]string
-		expectedFieldTypes map[string]string
+		expectedFieldTypes ProtoFieldTypes
 		expectError        bool
 	}{
 		{
@@ -381,8 +381,8 @@ message ListFctAttestationRequest {
 				"slot":       "The slot number",
 				"block_root": "The block root hash",
 			},
-			expectedFieldTypes: map[string]string{
-				"meta_client_geo_longitude": "DoubleValue",
+			expectedFieldTypes: ProtoFieldTypes{
+				"ListFctAttestationRequest": {"meta_client_geo_longitude": "DoubleValue"},
 			},
 			expectError: false,
 		},
@@ -394,7 +394,7 @@ message Request {
   string id = 1;
 }`,
 			expectedDesc:       map[string]string{},
-			expectedFieldTypes: map[string]string{},
+			expectedFieldTypes: ProtoFieldTypes{},
 			expectError:        false,
 		},
 		{
@@ -411,10 +411,12 @@ message GetFctTestRequest {
   google.protobuf.BoolValue enabled = 3;
 }`,
 			expectedDesc: map[string]string{},
-			expectedFieldTypes: map[string]string{
-				"count":   "Int32Value",
-				"name":    "StringValue",
-				"enabled": "BoolValue",
+			expectedFieldTypes: ProtoFieldTypes{
+				"GetFctTestRequest": {
+					"count":   "Int32Value",
+					"name":    "StringValue",
+					"enabled": "BoolValue",
+				},
 			},
 			expectError: false,
 		},
@@ -440,9 +442,7 @@ message GetFctTestRequest {
 				assert.NoError(t, err)
 
 				// Check field types
-				for field, expectedType := range tt.expectedFieldTypes {
-					assert.Equal(t, expectedType, fieldTypes[field], "field type mismatch for %s", field)
-				}
+				assert.Equal(t, tt.expectedFieldTypes, fieldTypes)
 
 				// Check descriptions (if service exists)
 				if len(tt.expectedDesc) > 0 {
@@ -801,8 +801,10 @@ func TestFixWrapperTypes(t *testing.T) {
 				},
 			},
 			fieldTypes: ProtoFieldTypes{
-				"meta_client_geo_longitude": "DoubleValue",
-				"meta_client_geo_latitude":  "DoubleValue",
+				"Request": {
+					"meta_client_geo_longitude": "DoubleValue",
+					"meta_client_geo_latitude":  "DoubleValue",
+				},
 			},
 			expectedChanges: 2,
 		},
@@ -828,7 +830,7 @@ func TestFixWrapperTypes(t *testing.T) {
 				},
 			},
 			fieldTypes: ProtoFieldTypes{
-				"meta_client_geo_longitude": "DoubleValue",
+				"Request": {"meta_client_geo_longitude": "DoubleValue"},
 			},
 			expectedChanges: 0,
 		},
@@ -845,6 +847,99 @@ func TestFixWrapperTypes(t *testing.T) {
 			changes := fixWrapperTypes(tt.doc, tt.fieldTypes)
 			assert.Equal(t, tt.expectedChanges, changes)
 		})
+	}
+}
+
+// TestFixWrapperTypesSameFieldNameAcrossTables covers columns that share a name but
+// not a type across tables. Each schema must keep the type of its own message's field.
+func TestFixWrapperTypesSameFieldNameAcrossTables(t *testing.T) {
+	protoFiles := map[string]string{
+		// UInt64 and Float32 columns, with a FloatValue filter in the request.
+		"fct_engine.proto": `syntax = "proto3";
+message FctEngine {
+  uint64 avg_gas_used = 1;
+  float avg_blob_count = 2;
+}
+message ListFctEngineRequest {
+  google.protobuf.FloatValue avg_blob_count = 1;
+}
+service FctEngineService {
+  rpc List(ListFctEngineRequest) returns (ListFctEngineResponse);
+}`,
+		// Nullable(Float64) columns with the same names.
+		"fct_proposal.proto": `syntax = "proto3";
+message FctProposal {
+  google.protobuf.DoubleValue avg_gas_used = 1;
+  google.protobuf.DoubleValue avg_blob_count = 2;
+  google.protobuf.DoubleValue avg_inclusion_distance = 3;
+}
+service FctProposalService {
+  rpc List(ListFctProposalRequest) returns (ListFctProposalResponse);
+}`,
+		// Nullable(Float32), parsed after the Nullable(Float64) column above.
+		"fct_validator_50ms.proto": `syntax = "proto3";
+message FctValidator50ms {
+  google.protobuf.FloatValue avg_inclusion_distance = 1;
+}
+service FctValidator50msService {
+  rpc List(ListFctValidator50msRequest) returns (ListFctValidator50msResponse);
+}`,
+	}
+
+	tmpDir := t.TempDir()
+	for filename, content := range protoFiles {
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, filename), []byte(content), 0600))
+	}
+
+	_, fieldTypes, err := loadProtoData(tmpDir)
+	require.NoError(t, err)
+
+	// Schemas as protoc-gen-openapi emits them: scalars carry their format, wrappers do not.
+	prop := func(typ, format string) *openapi3.SchemaRef {
+		return &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{typ}, Format: format}}
+	}
+	schema := func(props openapi3.Schemas) *openapi3.SchemaRef {
+		return &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"object"}, Properties: props}}
+	}
+	doc := &openapi3.T{Components: &openapi3.Components{Schemas: openapi3.Schemas{
+		"FctEngine": schema(openapi3.Schemas{
+			"avg_gas_used":   prop("integer", "uint64"),
+			"avg_blob_count": prop("number", "float"),
+		}),
+		"FctProposal": schema(openapi3.Schemas{
+			"avg_gas_used":           prop("number", ""),
+			"avg_blob_count":         prop("number", ""),
+			"avg_inclusion_distance": prop("number", ""),
+		}),
+		// Already renamed by fixSchemaNames.
+		"FctValidator50Ms": schema(openapi3.Schemas{
+			"avg_inclusion_distance": prop("number", ""),
+		}),
+	}}}
+
+	fixWrapperTypes(doc, fieldTypes)
+
+	expected := map[string]map[string][2]string{
+		"FctEngine": {
+			"avg_gas_used":   {"integer", "uint64"},
+			"avg_blob_count": {"number", "float"},
+		},
+		"FctProposal": {
+			"avg_gas_used":           {"number", "double"},
+			"avg_blob_count":         {"number", "double"},
+			"avg_inclusion_distance": {"number", "double"},
+		},
+		"FctValidator50Ms": {
+			"avg_inclusion_distance": {"number", "float"},
+		},
+	}
+
+	for schemaName, props := range expected {
+		for propName, want := range props {
+			got := doc.Components.Schemas[schemaName].Value.Properties[propName].Value
+			assert.Equal(t, want[0], got.Type.Slice()[0], "%s.%s type", schemaName, propName)
+			assert.Equal(t, want[1], got.Format, "%s.%s format", schemaName, propName)
+		}
 	}
 }
 
@@ -894,7 +989,7 @@ func TestApplyTransformations(t *testing.T) {
 	}
 
 	fieldTypes := ProtoFieldTypes{
-		"count": "Int64Value",
+		"Test50ms": {"count": "Int64Value"},
 	}
 
 	annotations := ProtoFieldAnnotations{}
