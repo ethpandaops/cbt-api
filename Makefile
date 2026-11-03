@@ -468,6 +468,14 @@ integration-test: build-binary
 			printf "$(YELLOW)⚠ $$HTTP_CODE (endpoint exists, may have validation/query errors)$(RESET)\n"; \
 		fi; \
 	done; \
+	printf "$(CYAN)  Testing /openapi.yaml describes tables with their comments...$(RESET) "; \
+	DESCRIBED=$$(curl -s http://localhost:18080/openapi.yaml | grep -c "description: Tests all integer types"); \
+	if [ "$$DESCRIBED" = "2" ]; then \
+		printf "$(GREEN)✓ item schema and list operation$(RESET)\n"; \
+	else \
+		printf "$(RED)✗ table comment found $$DESCRIBED times, want 2 (item schema and list operation)$(RESET)\n"; \
+		FAILED=1; \
+	fi; \
 	printf "$(CYAN)==> Stopping API server...$(RESET)\n"; \
 	kill $$SERVER_PID 2>/dev/null || true; \
 	rm -f /tmp/cbt-api-test.pid; \
