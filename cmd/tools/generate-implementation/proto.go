@@ -146,12 +146,14 @@ func parseProtoDescriptors(descriptorPath string, info *ProtoInfo) error {
 
 			fields := make(map[string]string)
 
+			// Key by the proto field name as is: it is already the snake_case column name the
+			// OpenAPI query parameters are built from. toSnakeCase would split a letter from a
+			// following digit (p50_seen → p_50_seen), so those filters would never match.
 			for _, field := range msgType.GetField() {
-				fieldName := toSnakeCase(field.GetName())
 				fieldType := getFieldTypeFromDescriptor(field, messageTypes)
 
 				if fieldType != "" {
-					fields[fieldName] = fieldType
+					fields[field.GetName()] = fieldType
 				}
 			}
 
