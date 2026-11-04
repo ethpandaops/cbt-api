@@ -481,12 +481,25 @@ func TestParseProtoDescriptors(t *testing.T) {
 								Name: new("ListFctBlockRequest"),
 								Field: []*descriptorpb.FieldDescriptorProto{
 									{
-										Name:     new("Slot"),
+										Name:     new("slot"),
 										TypeName: new(".cbt.UInt32Filter"),
 									},
 									{
-										Name:     new("BlockRoot"),
+										Name:     new("block_root"),
 										TypeName: new(".cbt.NullableStringFilter"),
+									},
+									{
+										// A letter followed by a digit must stay together: p50, not p_50.
+										Name:     new("p50_seen_slot_start_diff"),
+										TypeName: new(".cbt.UInt32Filter"),
+									},
+									{
+										Name:     new("eth1_data_block_hash"),
+										TypeName: new(".cbt.StringFilter"),
+									},
+									{
+										Name:     new("custody_4_peer_count"),
+										TypeName: new(".cbt.UInt32Filter"),
 									},
 								},
 							},
@@ -512,8 +525,11 @@ func TestParseProtoDescriptors(t *testing.T) {
 				},
 				RequestFields: map[string]map[string]string{
 					"fct_block": {
-						"slot":       "UInt32Filter",
-						"block_root": "NullableStringFilter",
+						"slot":                     "UInt32Filter",
+						"block_root":               "NullableStringFilter",
+						"p50_seen_slot_start_diff": "UInt32Filter",
+						"eth1_data_block_hash":     "StringFilter",
+						"custody_4_peer_count":     "UInt32Filter",
 					},
 				},
 			},
@@ -582,7 +598,7 @@ func TestParseProtoDescriptors(t *testing.T) {
 								Name: new("ListFctNodeActiveLast24HRequest"),
 								Field: []*descriptorpb.FieldDescriptorProto{
 									{
-										Name:     new("NodeId"),
+										Name:     new("node_id"),
 										TypeName: new(".cbt.StringFilter"),
 									},
 								},
@@ -739,7 +755,7 @@ func TestAnalyzeProtos(t *testing.T) {
 							Name: new("ListFctBlockRequest"),
 							Field: []*descriptorpb.FieldDescriptorProto{
 								{
-									Name:     new("Slot"),
+									Name:     new("slot"),
 									TypeName: new(".cbt.UInt32Filter"),
 								},
 							},
