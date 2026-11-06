@@ -38,6 +38,9 @@ type Client struct {
 	conn   driver.Conn
 	log    logrus.FieldLogger
 	config *config.ClickHouseConfig
+	// settings is a SETTINGS clause appended to every query. It travels in the query text, so it reaches
+	// ClickHouse through proxies such as chproxy that drop settings sent as URL parameters.
+	settings string
 }
 
 // Ensure Client implements DatabaseClient interface.
@@ -85,25 +88,58 @@ func NewClient(cfg *config.ClickHouseConfig, logger logrus.FieldLogger) (*Client
 	}).Info("ClickHouse client initialised")
 
 	return &Client{
-		conn:   conn,
-		log:    log,
-		config: cfg,
+		conn:     conn,
+		log:      log,
+		config:   cfg,
+		settings: settingsClause(cfg),
 	}, nil
 }
 
 // Query executes a SQL query and returns rows (native driver interface).
 func (c *Client) Query(ctx context.Context, query string, args ...any) (driver.Rows, error) {
-	return c.conn.Query(ctx, query, args...)
+	return c.conn.Query(ctx, c.withSettings(query), args...)
 }
 
 // QueryRow executes a query that is expected to return at most one row.
 func (c *Client) QueryRow(ctx context.Context, query string, args ...any) driver.Row {
-	return c.conn.QueryRow(ctx, query, args...)
+	return c.conn.QueryRow(ctx, c.withSettings(query), args...)
 }
 
 // Select executes a query and scans results directly into a slice of structs.
 func (c *Client) Select(ctx context.Context, dest any, query string, args ...any) error {
-	return c.conn.Select(ctx, dest, query, args...)
+	return c.conn.Select(ctx, dest, c.withSettings(query), args...)
+}
+
+// settingsClause builds the SETTINGS clause that limits each query's run time and how much it reads.
+func settingsClause(cfg *config.ClickHouseConfig) string {
+	settings := make([]string, 0, 4)
+
+	if cfg.MaxExecutionTime > 0 {
+		settings = append(settings, fmt.Sprintf("max_execution_time = %d", cfg.MaxExecutionTime))
+	}
+
+	if cfg.MaxRowsToRead > 0 {
+		settings = append(settings, fmt.Sprintf("max_rows_to_read = %d", cfg.MaxRowsToRead))
+	}
+
+	if cfg.MaxBytesToRead > 0 {
+		settings = append(settings, fmt.Sprintf("max_bytes_to_read = %d", cfg.MaxBytesToRead))
+	}
+
+	if len(settings) == 0 {
+		return ""
+	}
+
+	return " SETTINGS " + strings.Join(append(settings, "read_overflow_mode = 'throw'"), ", ")
+}
+
+// withSettings appends the client's SETTINGS clause to a query that has none of its own.
+func (c *Client) withSettings(query string) string {
+	if c.settings == "" || strings.Contains(strings.ToUpper(query), " SETTINGS ") {
+		return query
+	}
+
+	return strings.TrimRight(strings.TrimSpace(query), ";") + c.settings
 }
 
 // Exec executes a query without returning any rows.

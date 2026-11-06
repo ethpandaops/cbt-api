@@ -17,7 +17,9 @@ clickhouse:
   dial_timeout: 10s
   read_timeout: 30s
   write_timeout: 30s
-  max_execution_time: 60
+  max_execution_time: 20
+  max_rows_to_read: 1000000000
+  max_bytes_to_read: 68719476736 # 64 GiB
   insecure_skip_verify: false
   discovery:
     prefixes:

@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/ethpandaops/cbt-api/internal/config"
+	apierrors "github.com/ethpandaops/cbt-api/internal/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -334,10 +336,12 @@ func TestClient_QueryTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	var result []uint64
+	var result []struct {
+		V uint8 `ch:"v"`
+	}
 
-	// Query that will take a long time (summing a billion numbers)
-	err := client.Select(ctx, &result, "SELECT sum(number) FROM numbers(1000000000)")
+	// A query that always outlasts the deadline
+	err := client.Select(ctx, &result, "SELECT sleep(2) AS v")
 	require.Error(t, err)
 
 	// Accept either "deadline exceeded" or "i/o timeout" as both indicate timeout
@@ -561,4 +565,52 @@ func createTestClient(t *testing.T) *Client {
 	require.NotNil(t, client)
 
 	return client
+}
+
+// TestClient_ReadLimits checks that the read limits reach ClickHouse over both protocols: a query that reads more
+// rows than allowed fails with a limit error that the API maps to a 400, and a smaller one succeeds.
+func TestClient_ReadLimits(t *testing.T) {
+	userInfo := fmt.Sprintf("%s:%s", sharedContainer.User, sharedContainer.Password)
+
+	for name, dsn := range map[string]string{
+		"native": fmt.Sprintf("clickhouse://%s@%s", userInfo, net.JoinHostPort(sharedContainerHost, sharedNativePort)),
+		"http":   fmt.Sprintf("http://%s@%s", userInfo, net.JoinHostPort(sharedContainerHost, sharedHTTPPort)),
+	} {
+		t.Run(name, func(t *testing.T) {
+			cfg := &config.ClickHouseConfig{
+				DSN:              dsn,
+				Database:         "default",
+				MaxExecutionTime: 20,
+				MaxRowsToRead:    1000,
+				DialTimeout:      5 * time.Second,
+				ReadTimeout:      10 * time.Second,
+			}
+
+			log := logrus.New()
+			log.SetLevel(logrus.ErrorLevel)
+
+			client, err := NewClient(cfg, log)
+			require.NoError(t, err)
+
+			defer client.Close()
+
+			ctx := context.Background()
+
+			var small []struct {
+				N uint64 `ch:"n"`
+			}
+			require.NoError(t, client.Select(ctx, &small, "SELECT count() AS n FROM numbers(500)"))
+			assert.Equal(t, uint64(500), small[0].N)
+
+			var big []struct {
+				N uint64 `ch:"n"`
+			}
+
+			err = client.Select(ctx, &big, "SELECT count() AS n FROM numbers(100000)")
+			require.Error(t, err)
+
+			status := apierrors.FromQuery(err)
+			assert.Equal(t, http.StatusBadRequest, apierrors.HTTPStatus(status.Code), err.Error())
+		})
+	}
 }

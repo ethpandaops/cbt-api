@@ -2,9 +2,13 @@ package errors
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
+	"strconv"
 
+	"github.com/ClickHouse/clickhouse-go/v2"
 	"google.golang.org/grpc/codes"
 )
 
@@ -182,4 +186,42 @@ func PermissionDenied(message string) *Status {
 // PermissionDeniedf creates a Status for permission errors with formatted message.
 func PermissionDeniedf(format string, args ...any) *Status {
 	return Newf(codes.PermissionDenied, format, args...)
+}
+
+// ClickHouse error codes for a query that hit a read or time limit.
+const (
+	clickhouseTooManyRows     = 158
+	clickhouseTimeoutExceeded = 159
+	clickhouseTooManyBytes    = 307
+)
+
+var clickhouseCodeRe = regexp.MustCompile(`Code: (\d+)\. DB::Exception`)
+
+// clickhouseCode returns the ClickHouse error code in err, or 0. The HTTP driver returns exceptions as text,
+// the native one as *clickhouse.Exception, so both are read.
+func clickhouseCode(err error) int {
+	var ex *clickhouse.Exception
+	if errors.As(err, &ex) {
+		return int(ex.Code)
+	}
+
+	if m := clickhouseCodeRe.FindStringSubmatch(err.Error()); m != nil {
+		code, _ := strconv.Atoi(m[1])
+
+		return code
+	}
+
+	return 0
+}
+
+// FromQuery maps a failed ClickHouse query to an API status. A query that would read too much or run too
+// long is the caller's to narrow, so it gets a 400 saying how. Anything else is a 500.
+func FromQuery(err error) *Status {
+	switch clickhouseCode(err) {
+	case clickhouseTooManyRows, clickhouseTooManyBytes, clickhouseTimeoutExceeded:
+		return BadRequest("query reads too much data or runs too long: filter the table's primary_key " +
+			"field to a smaller range inside its bounds (see /api/v1/{network}/tables/{table})")
+	default:
+		return Internal(err.Error())
+	}
 }
