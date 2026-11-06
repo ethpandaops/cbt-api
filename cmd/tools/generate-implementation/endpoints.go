@@ -93,7 +93,7 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, params handlers.%s) 
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "query failed")
-		writeError(w, http.StatusInternalServerError, err)
+		apierrors.FromQuery(err).WriteJSON(w)
 		return
 	}
 	defer rows.Close()
@@ -112,6 +112,15 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, params handlers.%s) 
 			return
 		}
 		items = append(items, item)
+	}
+	// A limit can stop the query after the first rows arrived; return the error, not a short page.
+	if err := rows.Err(); err != nil {
+		scanSpan.RecordError(err)
+		scanSpan.End()
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "query failed")
+		apierrors.FromQuery(err).WriteJSON(w)
+		return
 	}
 	scanSpan.SetAttributes(attribute.Int("result.count", len(items)))
 	scanSpan.End()
@@ -203,7 +212,7 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, %s %s) {
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "query failed")
-		writeError(w, http.StatusInternalServerError, err)
+		apierrors.FromQuery(err).WriteJSON(w)
 		return
 	}
 	defer rows.Close()
@@ -220,6 +229,13 @@ func (s *Server) %s(w http.ResponseWriter, r *http.Request, %s %s) {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
+	} else if err := rows.Err(); err != nil {
+		scanSpan.RecordError(err)
+		scanSpan.End()
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "query failed")
+		apierrors.FromQuery(err).WriteJSON(w)
+		return
 	} else {
 		scanSpan.SetAttributes(attribute.Bool("result.found", false))
 		scanSpan.End()

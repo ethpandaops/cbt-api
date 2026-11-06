@@ -63,6 +63,11 @@ type ClickHouseConfig struct {
 	WriteTimeout     time.Duration `mapstructure:"write_timeout"`
 	MaxExecutionTime int           `mapstructure:"max_execution_time"`
 
+	// Read limits: a query that would read more rows or bytes fails, and the API returns a 400.
+	// 0 disables a limit.
+	MaxRowsToRead  uint64 `mapstructure:"max_rows_to_read"`
+	MaxBytesToRead uint64 `mapstructure:"max_bytes_to_read"`
+
 	// TLS settings
 	InsecureSkipVerify bool `mapstructure:"insecure_skip_verify"`
 }
@@ -130,7 +135,9 @@ func Load(configFile string) (*Config, error) {
 	viper.SetDefault("clickhouse.dial_timeout", 10*time.Second)
 	viper.SetDefault("clickhouse.read_timeout", 30*time.Second)
 	viper.SetDefault("clickhouse.write_timeout", 30*time.Second)
-	viper.SetDefault("clickhouse.max_execution_time", 60)
+	viper.SetDefault("clickhouse.max_execution_time", 20)
+	viper.SetDefault("clickhouse.max_rows_to_read", 1_000_000_000)
+	viper.SetDefault("clickhouse.max_bytes_to_read", 64<<30)
 	viper.SetDefault("clickhouse.use_final", false)
 	viper.SetDefault("clickhouse.insecure_skip_verify", false)
 
