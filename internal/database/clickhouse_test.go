@@ -605,6 +605,7 @@ func TestClient_ReadLimits(t *testing.T) {
 			var big []struct {
 				N uint64 `ch:"n"`
 			}
+
 			err = client.Select(ctx, &big, "SELECT count() AS n FROM numbers(100000)")
 			require.Error(t, err)
 
