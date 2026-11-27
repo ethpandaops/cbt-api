@@ -200,7 +200,8 @@ var envVarPattern = regexp.MustCompile(`\$\{([^}:]+)(:-([^}]*))?\}`)
 // substituteEnvVars replaces ${VAR} and ${VAR:-default} in the scalar values of a YAML document
 // and returns the document re-encoded, so a substituted value is never parsed as YAML.
 // An unquoted placeholder takes the YAML type of its value, so port: ${PORT} is an int, while a quoted
-// placeholder stays a string. Keys and comments are left unchanged. ${VAR} with VAR unset or empty is an error.
+// placeholder, or one whose value would resolve to null, stays a string.
+// Keys and comments are left unchanged. ${VAR} with VAR unset or empty is an error.
 func substituteEnvVars(data []byte) ([]byte, error) {
 	var root yaml.Node
 	if err := yaml.Unmarshal(data, &root); err != nil {
@@ -242,6 +243,10 @@ func substituteNode(node *yaml.Node, missing *[]string) {
 
 		if node.Style == 0 {
 			node.Tag = ""
+
+			if node.ShortTag() == "!!null" {
+				node.Tag = "!!str"
+			}
 		}
 	case yaml.MappingNode:
 		for i := 1; i < len(node.Content); i += 2 {
