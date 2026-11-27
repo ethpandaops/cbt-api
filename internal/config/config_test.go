@@ -3,11 +3,13 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -132,6 +134,44 @@ func TestLoadSubstitutesNonStringFields(t *testing.T) {
 	assert.True(t, cfg.ClickHouse.UseFinal)
 }
 
+func TestSubstituteEnvVarsTyping(t *testing.T) {
+	t.Setenv("PORT", "8181")
+	t.Setenv("FINAL", "true")
+	t.Setenv("HEX", "0x1F")
+	t.Setenv("V", "a: b")
+
+	out, err := substituteEnvVars([]byte(`
+plain_int: ${PORT}
+plain_bool: ${FINAL}
+plain_hex: ${HEX}
+plain_mixed: port-${PORT}
+plain_mapping_like: ${V}
+plain_empty_default: ${UNSET:-}
+double_quoted: "${PORT}"
+single_quoted: '${FINAL}'
+literal_block: |
+  ${PORT}
+untouched: "8080"
+`))
+	require.NoError(t, err)
+
+	var got map[string]any
+	require.NoError(t, yaml.Unmarshal(out, &got))
+
+	assert.Equal(t, map[string]any{
+		"plain_int":           8181,
+		"plain_bool":          true,
+		"plain_hex":           31,
+		"plain_mixed":         "port-8181",
+		"plain_mapping_like":  "a: b",
+		"plain_empty_default": nil,
+		"double_quoted":       "8181",
+		"single_quoted":       "true",
+		"literal_block":       "8181\n",
+		"untouched":           "8080",
+	}, got)
+}
+
 func TestLoadFailsOnMissingEnvVars(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -152,7 +192,7 @@ func TestLoadFailsOnMissingEnvVars(t *testing.T) {
 		},
 		{
 			name:    "every missing variable is named",
-			content: "clickhouse:\n  dsn: clickhouse://${CH_USER}:${CH_PASS}@${CH_HOST:-localhost}:9000\n  database: ${CH_DB}\n",
+			content: "clickhouse:\n  dsn: clickhouse://${CH_USER}:${CH_PASS}@${CH_HOST:-localhost}:9000\n  database: ${CH_DB}${CH_PASS}\n",
 			env:     map[string]string{userVar: "reader"},
 			missing: []string{"CH_PASS", "CH_DB"},
 		},
@@ -168,7 +208,7 @@ func TestLoadFailsOnMissingEnvVars(t *testing.T) {
 			require.Error(t, err)
 
 			for _, name := range tt.missing {
-				assert.Contains(t, err.Error(), name)
+				assert.Equal(t, 1, strings.Count(err.Error(), name), name)
 			}
 
 			assert.NotContains(t, err.Error(), userVar)

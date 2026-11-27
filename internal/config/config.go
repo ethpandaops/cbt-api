@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -198,7 +199,8 @@ var envVarPattern = regexp.MustCompile(`\$\{([^}:]+)(:-([^}]*))?\}`)
 
 // substituteEnvVars replaces ${VAR} and ${VAR:-default} in the scalar values of a YAML document
 // and returns the document re-encoded, so a substituted value is never parsed as YAML.
-// Keys and comments are left unchanged. ${VAR} with VAR unset or empty is an error.
+// An unquoted placeholder takes the YAML type of its value, so port: ${PORT} is an int, while a quoted
+// placeholder stays a string. Keys and comments are left unchanged. ${VAR} with VAR unset or empty is an error.
 func substituteEnvVars(data []byte) ([]byte, error) {
 	var root yaml.Node
 	if err := yaml.Unmarshal(data, &root); err != nil {
@@ -219,19 +221,28 @@ func substituteEnvVars(data []byte) ([]byte, error) {
 func substituteNode(node *yaml.Node, missing *[]string) {
 	switch node.Kind {
 	case yaml.ScalarNode:
-		node.Value = envVarPattern.ReplaceAllStringFunc(node.Value, func(match string) string {
+		expanded := envVarPattern.ReplaceAllStringFunc(node.Value, func(match string) string {
 			parts := envVarPattern.FindStringSubmatch(match)
 
 			if value := os.Getenv(parts[1]); value != "" {
 				return value
 			}
 
-			if parts[2] == "" {
+			if parts[2] == "" && !slices.Contains(*missing, parts[1]) {
 				*missing = append(*missing, parts[1])
 			}
 
 			return parts[3]
 		})
+		if expanded == node.Value {
+			return
+		}
+
+		node.Value = expanded
+
+		if node.Style == 0 {
+			node.Tag = ""
+		}
 	case yaml.MappingNode:
 		for i := 1; i < len(node.Content); i += 2 {
 			substituteNode(node.Content[i], missing)
