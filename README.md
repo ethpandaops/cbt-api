@@ -90,7 +90,7 @@ clickhouse:
   dsn: "${CLICKHOUSE_DSN}"
 ```
 
-An unset variable without a default becomes an empty string. Comment lines are not expanded.
+The server fails to start if a `${VAR}` without a default is unset or empty, and the error names the variable. Comment lines are not expanded.
 
 ### Proto Generation Settings
 

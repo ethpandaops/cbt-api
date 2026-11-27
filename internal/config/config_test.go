@@ -12,6 +12,7 @@ import (
 
 const (
 	dsnVar         = "CH_DSN"
+	dsnRef         = "dsn: ${CH_DSN}"
 	dsnWithDefault = "dsn: ${CH_DSN:-clickhouse://localhost:9000}"
 )
 
@@ -24,13 +25,13 @@ func TestSubstituteEnvVars(t *testing.T) {
 	}{
 		{
 			name:    "simple variable",
-			content: "dsn: ${CH_DSN}",
+			content: dsnRef,
 			env:     map[string]string{dsnVar: "clickhouse://u:p@host:9000"},
 			want:    "dsn: clickhouse://u:p@host:9000",
 		},
 		{
-			name:    "missing variable becomes empty",
-			content: "dsn: ${CH_DSN}",
+			name:    "empty default allowed",
+			content: "dsn: ${CH_DSN:-}",
 			want:    "dsn: ",
 		},
 		{
@@ -76,7 +77,54 @@ func TestSubstituteEnvVars(t *testing.T) {
 				t.Setenv(k, v)
 			}
 
-			assert.Equal(t, tt.want, substituteEnvVars(tt.content))
+			got, err := substituteEnvVars(tt.content)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestSubstituteEnvVarsMissing(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		env     map[string]string
+		missing []string
+	}{
+		{
+			name:    "unset variable",
+			content: dsnRef,
+			missing: []string{dsnVar},
+		},
+		{
+			name:    "empty variable",
+			content: dsnRef,
+			env:     map[string]string{dsnVar: ""},
+			missing: []string{dsnVar},
+		},
+		{
+			name:    "every missing variable is named",
+			content: "dsn: clickhouse://${CH_USER}:${CH_PASS}@${CH_HOST:-localhost}:9000/${CH_DB}",
+			env:     map[string]string{"CH_USER": "reader"},
+			missing: []string{"CH_PASS", "CH_DB"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for k, v := range tt.env {
+				t.Setenv(k, v)
+			}
+
+			_, err := substituteEnvVars(tt.content)
+			require.Error(t, err)
+
+			for _, name := range tt.missing {
+				assert.Contains(t, err.Error(), name)
+			}
+
+			assert.NotContains(t, err.Error(), "CH_USER")
+			assert.NotContains(t, err.Error(), "CH_HOST")
 		})
 	}
 }
@@ -106,6 +154,18 @@ clickhouse:
 	assert.Equal(t, "clickhouse://u:pa$word@host:9000", cfg.ClickHouse.DSN)
 	assert.Equal(t, "mainnet", cfg.ClickHouse.Database)
 	assert.Equal(t, 8080, cfg.Server.Port)
+}
+
+func TestLoadFailsOnUnsetEnvVar(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(path, []byte("clickhouse:\n  dsn: \"${CH_DSN_UNSET}\"\n"), 0o600))
+
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+
+	_, err := Load(path)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "CH_DSN_UNSET")
 }
 
 func TestLoadMissingFile(t *testing.T) {

@@ -172,7 +172,12 @@ func Load(configFile string) (*Config, error) {
 		return nil, err
 	}
 
-	if err := viper.ReadConfig(bytes.NewReader([]byte(substituteEnvVars(string(data))))); err != nil {
+	content, err := substituteEnvVars(string(data))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := viper.ReadConfig(bytes.NewReader([]byte(content))); err != nil {
 		return nil, err
 	}
 
@@ -184,12 +189,14 @@ func Load(configFile string) (*Config, error) {
 	return &cfg, nil
 }
 
-var envVarPattern = regexp.MustCompile(`\$\{([^}:]+)(?::-([^}]*))?\}`)
+var envVarPattern = regexp.MustCompile(`\$\{([^}:]+)(:-([^}]*))?\}`)
 
 // substituteEnvVars replaces ${VAR} and ${VAR:-default} with environment variable values.
-// Comment lines are left unchanged, and an unset or empty variable without a default becomes an empty string.
-func substituteEnvVars(content string) string {
+// Comment lines are left unchanged. ${VAR} with VAR unset or empty is an error.
+func substituteEnvVars(content string) (string, error) {
 	lines := strings.Split(content, "\n")
+
+	var missing []string
 
 	for i, line := range lines {
 		if strings.HasPrefix(strings.TrimSpace(line), "#") {
@@ -203,9 +210,17 @@ func substituteEnvVars(content string) string {
 				return value
 			}
 
-			return parts[2]
+			if parts[2] == "" {
+				missing = append(missing, parts[1])
+			}
+
+			return parts[3]
 		})
 	}
 
-	return strings.Join(lines, "\n")
+	if len(missing) > 0 {
+		return "", fmt.Errorf("config references unset or empty environment variables: %s", strings.Join(missing, ", "))
+	}
+
+	return strings.Join(lines, "\n"), nil
 }
