@@ -18,6 +18,7 @@ const (
 	remoteDSN = "clickhouse://remote:9000"
 	userVar   = "CH_USER"
 	yamlNull  = "null"
+	yamlTrue  = "true"
 	dsnOrDef  = "clickhouse:\n  dsn: ${CH_DSN:-clickhouse://localhost:9000}\n"
 )
 
@@ -105,7 +106,7 @@ func TestLoadSubstitutedValuesAreVerbatim(t *testing.T) {
 		"yaml-like": "[1, 2] &x {a: *x}",
 		"null":      yamlNull,
 		"tilde":     "~",
-		"bool":      "true",
+		"bool":      yamlTrue,
 		"hex":       "0x1F",
 		"float":     "1e3",
 		"octal":     "007",
@@ -139,7 +140,7 @@ func TestLoadSubstitutedValuesAreVerbatim(t *testing.T) {
 
 func TestLoadSubstitutesNonStringFields(t *testing.T) {
 	t.Setenv("PORT", "8181")
-	t.Setenv("FINAL", "true")
+	t.Setenv("FINAL", yamlTrue)
 	t.Setenv("RATE", "0.5")
 
 	cfg, err := loadFromString(t, "server:\n  port: ${PORT}\nclickhouse:\n  use_final: ${FINAL}\ntelemetry:\n  sample_rate: ${RATE}\n")
@@ -151,7 +152,7 @@ func TestLoadSubstitutesNonStringFields(t *testing.T) {
 
 func TestSubstituteEnvVarsTyping(t *testing.T) {
 	t.Setenv("PORT", "8181")
-	t.Setenv("FINAL", "true")
+	t.Setenv("FINAL", yamlTrue)
 	t.Setenv("HEX", "0x1F")
 	t.Setenv("V", "a: b")
 	t.Setenv("NULL", yamlNull)
@@ -179,7 +180,7 @@ untouched: "8080"
 
 	assert.Equal(t, map[string]any{
 		"plain_int":           "8181",
-		"plain_bool":          "true",
+		"plain_bool":          yamlTrue,
 		"plain_hex":           "0x1F",
 		"plain_mixed":         "port-8181",
 		"plain_mapping_like":  "a: b",
@@ -187,7 +188,7 @@ untouched: "8080"
 		"plain_null":          yamlNull,
 		"plain_tilde":         "~",
 		"double_quoted":       "8181",
-		"single_quoted":       "true",
+		"single_quoted":       yamlTrue,
 		"literal_block":       "8181\n",
 		"untouched":           "8080",
 	}, got)
