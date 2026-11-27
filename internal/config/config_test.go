@@ -17,6 +17,7 @@ const (
 	dsnRef    = "clickhouse:\n  dsn: ${CH_DSN}\n"
 	remoteDSN = "clickhouse://remote:9000"
 	userVar   = "CH_USER"
+	yamlNull  = "null"
 	dsnOrDef  = "clickhouse:\n  dsn: ${CH_DSN:-clickhouse://localhost:9000}\n"
 )
 
@@ -102,6 +103,8 @@ func TestLoadSubstitutedValuesAreVerbatim(t *testing.T) {
 		"quote":     "clickhouse://u:pa\"ss'@host:9000",
 		"pem":       "-----BEGIN KEY-----\nabc\n# not a comment\n-----END KEY-----\n",
 		"yaml-like": "[1, 2] &x {a: *x}",
+		"null":      yamlNull,
+		"tilde":     "~",
 	}
 	placeholders := map[string]string{
 		"plain":         "${V}",
@@ -139,6 +142,8 @@ func TestSubstituteEnvVarsTyping(t *testing.T) {
 	t.Setenv("FINAL", "true")
 	t.Setenv("HEX", "0x1F")
 	t.Setenv("V", "a: b")
+	t.Setenv("NULL", yamlNull)
+	t.Setenv("TILDE", "~")
 
 	out, err := substituteEnvVars([]byte(`
 plain_int: ${PORT}
@@ -147,6 +152,8 @@ plain_hex: ${HEX}
 plain_mixed: port-${PORT}
 plain_mapping_like: ${V}
 plain_empty_default: ${UNSET:-}
+plain_null: ${NULL}
+plain_tilde: ${TILDE}
 double_quoted: "${PORT}"
 single_quoted: '${FINAL}'
 literal_block: |
@@ -164,7 +171,9 @@ untouched: "8080"
 		"plain_hex":           31,
 		"plain_mixed":         "port-8181",
 		"plain_mapping_like":  "a: b",
-		"plain_empty_default": nil,
+		"plain_empty_default": "",
+		"plain_null":          yamlNull,
+		"plain_tilde":         "~",
 		"double_quoted":       "8181",
 		"single_quoted":       "true",
 		"literal_block":       "8181\n",
