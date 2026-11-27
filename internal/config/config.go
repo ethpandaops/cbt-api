@@ -1,7 +1,11 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
+	"os"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
@@ -114,6 +118,7 @@ type HeaderPolicy struct {
 }
 
 // Load loads configuration from file and environment variables.
+// ${VAR} and ${VAR:-default} in the file are replaced with environment variable values.
 func Load(configFile string) (*Config, error) {
 	viper.SetConfigFile(configFile)
 	viper.SetEnvPrefix("XATU_CBT_API")
@@ -162,10 +167,13 @@ func Load(configFile string) (*Config, error) {
 	viper.SetDefault("telemetry.export_batch_size", 512)
 	viper.SetDefault("telemetry.insecure", false)
 
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			return nil, err
-		}
+	data, err := os.ReadFile(configFile)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := viper.ReadConfig(bytes.NewReader([]byte(substituteEnvVars(string(data))))); err != nil {
+		return nil, err
 	}
 
 	var cfg Config
@@ -174,4 +182,30 @@ func Load(configFile string) (*Config, error) {
 	}
 
 	return &cfg, nil
+}
+
+var envVarPattern = regexp.MustCompile(`\$\{([^}:]+)(?::-([^}]*))?\}`)
+
+// substituteEnvVars replaces ${VAR} and ${VAR:-default} with environment variable values.
+// Comment lines are left unchanged, and an unset or empty variable without a default becomes an empty string.
+func substituteEnvVars(content string) string {
+	lines := strings.Split(content, "\n")
+
+	for i, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), "#") {
+			continue
+		}
+
+		lines[i] = envVarPattern.ReplaceAllStringFunc(line, func(match string) string {
+			parts := envVarPattern.FindStringSubmatch(match)
+
+			if value := os.Getenv(parts[1]); value != "" {
+				return value
+			}
+
+			return parts[2]
+		})
+	}
+
+	return strings.Join(lines, "\n")
 }

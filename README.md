@@ -83,6 +83,15 @@ clickhouse:
       - "*_tmp"    # Exclude temporary tables
 ```
 
+Any value in the config file can reference an environment variable with `${VAR}` or `${VAR:-default}`, which keeps secrets such as the DSN out of the file:
+
+```yaml
+clickhouse:
+  dsn: "${CLICKHOUSE_DSN}"
+```
+
+An unset variable without a default becomes an empty string. Comment lines are not expanded.
+
 ### Proto Generation Settings
 
 ```yaml
