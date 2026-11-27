@@ -18,6 +18,7 @@ const (
 	remoteDSN = "clickhouse://remote:9000"
 	userVar   = "CH_USER"
 	yamlNull  = "null"
+	yamlTrue  = "true"
 	dsnOrDef  = "clickhouse:\n  dsn: ${CH_DSN:-clickhouse://localhost:9000}\n"
 )
 
@@ -105,6 +106,14 @@ func TestLoadSubstitutedValuesAreVerbatim(t *testing.T) {
 		"yaml-like": "[1, 2] &x {a: *x}",
 		"null":      yamlNull,
 		"tilde":     "~",
+		"bool":      yamlTrue,
+		"hex":       "0x1F",
+		"float":     "1e3",
+		"octal":     "007",
+		"yes":       "yes",
+		"mapping":   "a: b",
+		"sequence":  "- x",
+		"hash":      "#x",
 	}
 	placeholders := map[string]string{
 		"plain":         "${V}",
@@ -117,9 +126,11 @@ func TestLoadSubstitutedValuesAreVerbatim(t *testing.T) {
 			t.Run(valueName+"/"+placeholderName, func(t *testing.T) {
 				t.Setenv("V", value)
 
-				cfg, err := loadFromString(t, "clickhouse:\n  dsn: "+placeholder+"\n  database: mainnet\n")
+				cfg, err := loadFromString(t, "clickhouse:\n  dsn: "+placeholder+"\n  database: mainnet\n"+
+					"telemetry:\n  headers:\n    authorization: "+placeholder+"\n")
 				require.NoError(t, err)
 				assert.Equal(t, value, cfg.ClickHouse.DSN)
+				assert.Equal(t, value, cfg.Telemetry.Headers["authorization"])
 				assert.Equal(t, "mainnet", cfg.ClickHouse.Database)
 				assert.False(t, cfg.ClickHouse.InsecureSkipVerify)
 			})
@@ -129,17 +140,19 @@ func TestLoadSubstitutedValuesAreVerbatim(t *testing.T) {
 
 func TestLoadSubstitutesNonStringFields(t *testing.T) {
 	t.Setenv("PORT", "8181")
-	t.Setenv("FINAL", "true")
+	t.Setenv("FINAL", yamlTrue)
+	t.Setenv("RATE", "0.5")
 
-	cfg, err := loadFromString(t, "server:\n  port: ${PORT}\nclickhouse:\n  use_final: ${FINAL}\n")
+	cfg, err := loadFromString(t, "server:\n  port: ${PORT}\nclickhouse:\n  use_final: ${FINAL}\ntelemetry:\n  sample_rate: ${RATE}\n")
 	require.NoError(t, err)
 	assert.Equal(t, 8181, cfg.Server.Port)
 	assert.True(t, cfg.ClickHouse.UseFinal)
+	assert.InDelta(t, 0.5, cfg.Telemetry.SampleRate, 0)
 }
 
 func TestSubstituteEnvVarsTyping(t *testing.T) {
 	t.Setenv("PORT", "8181")
-	t.Setenv("FINAL", "true")
+	t.Setenv("FINAL", yamlTrue)
 	t.Setenv("HEX", "0x1F")
 	t.Setenv("V", "a: b")
 	t.Setenv("NULL", yamlNull)
@@ -166,16 +179,16 @@ untouched: "8080"
 	require.NoError(t, yaml.Unmarshal(out, &got))
 
 	assert.Equal(t, map[string]any{
-		"plain_int":           8181,
-		"plain_bool":          true,
-		"plain_hex":           31,
+		"plain_int":           "8181",
+		"plain_bool":          yamlTrue,
+		"plain_hex":           "0x1F",
 		"plain_mixed":         "port-8181",
 		"plain_mapping_like":  "a: b",
 		"plain_empty_default": "",
 		"plain_null":          yamlNull,
 		"plain_tilde":         "~",
 		"double_quoted":       "8181",
-		"single_quoted":       "true",
+		"single_quoted":       yamlTrue,
 		"literal_block":       "8181\n",
 		"untouched":           "8080",
 	}, got)

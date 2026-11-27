@@ -90,7 +90,7 @@ clickhouse:
   dsn: "${CLICKHOUSE_DSN}"
 ```
 
-The variable's value is used as-is, so quotes, `#`, backslashes and newlines need no escaping. An unquoted placeholder takes the YAML type of its value, so `port: ${PORT}` is a number; quote it, as in `"${VAR}"`, to keep a string. The server fails to start if a `${VAR}` without a default is unset or empty, and the error names the variable. Keys and comments are not expanded.
+The variable's value is used as-is, so quotes, `#`, backslashes and newlines need no escaping. A substituted value is always a string, quoted or not, so a secret such as `true` or `007` is used exactly as set; numeric and boolean fields such as `port: ${PORT}` still accept it. The server fails to start if a `${VAR}` without a default is unset or empty, and the error names the variable. Keys and comments are not expanded.
 
 ### Proto Generation Settings
 
