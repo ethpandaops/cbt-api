@@ -1,10 +1,16 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
+	"os"
+	"regexp"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 )
 
 // Config holds the application configuration.
@@ -114,6 +120,7 @@ type HeaderPolicy struct {
 }
 
 // Load loads configuration from file and environment variables.
+// ${VAR} and ${VAR:-default} in the file are replaced with environment variable values.
 func Load(configFile string) (*Config, error) {
 	viper.SetConfigFile(configFile)
 	viper.SetEnvPrefix("XATU_CBT_API")
@@ -162,10 +169,22 @@ func Load(configFile string) (*Config, error) {
 	viper.SetDefault("telemetry.export_batch_size", 512)
 	viper.SetDefault("telemetry.insecure", false)
 
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+	data, err := os.ReadFile(configFile)
+	if err != nil {
+		return nil, err
+	}
+
+	if bytes.Contains(data, []byte("${")) {
+		data, err = substituteEnvVars(data)
+		if err != nil {
 			return nil, err
 		}
+
+		viper.SetConfigType("yaml")
+	}
+
+	if err := viper.ReadConfig(bytes.NewReader(data)); err != nil {
+		return nil, err
 	}
 
 	var cfg Config
@@ -174,4 +193,63 @@ func Load(configFile string) (*Config, error) {
 	}
 
 	return &cfg, nil
+}
+
+var envVarPattern = regexp.MustCompile(`\$\{([^}:]+)(:-([^}]*))?\}`)
+
+// substituteEnvVars replaces ${VAR} and ${VAR:-default} in the scalar values of a YAML document
+// and returns the document re-encoded, so a substituted value is never parsed as YAML.
+// An unquoted placeholder takes the YAML type of its value, so port: ${PORT} is an int, while a quoted
+// placeholder stays a string. Keys and comments are left unchanged. ${VAR} with VAR unset or empty is an error.
+func substituteEnvVars(data []byte) ([]byte, error) {
+	var root yaml.Node
+	if err := yaml.Unmarshal(data, &root); err != nil {
+		return nil, fmt.Errorf("failed to parse config: %w", err)
+	}
+
+	var missing []string
+
+	substituteNode(&root, &missing)
+
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("config references unset or empty environment variables: %s", strings.Join(missing, ", "))
+	}
+
+	return yaml.Marshal(&root)
+}
+
+func substituteNode(node *yaml.Node, missing *[]string) {
+	switch node.Kind {
+	case yaml.ScalarNode:
+		expanded := envVarPattern.ReplaceAllStringFunc(node.Value, func(match string) string {
+			parts := envVarPattern.FindStringSubmatch(match)
+
+			if value := os.Getenv(parts[1]); value != "" {
+				return value
+			}
+
+			if parts[2] == "" && !slices.Contains(*missing, parts[1]) {
+				*missing = append(*missing, parts[1])
+			}
+
+			return parts[3]
+		})
+		if expanded == node.Value {
+			return
+		}
+
+		node.Value = expanded
+
+		if node.Style == 0 {
+			node.Tag = ""
+		}
+	case yaml.MappingNode:
+		for i := 1; i < len(node.Content); i += 2 {
+			substituteNode(node.Content[i], missing)
+		}
+	case yaml.DocumentNode, yaml.SequenceNode:
+		for _, child := range node.Content {
+			substituteNode(child, missing)
+		}
+	}
 }

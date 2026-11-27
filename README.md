@@ -83,6 +83,15 @@ clickhouse:
       - "*_tmp"    # Exclude temporary tables
 ```
 
+Any value in a YAML config file can reference an environment variable with `${VAR}` or `${VAR:-default}`, which keeps secrets such as the DSN out of the file:
+
+```yaml
+clickhouse:
+  dsn: "${CLICKHOUSE_DSN}"
+```
+
+The variable's value is used as-is, so quotes, `#`, backslashes and newlines need no escaping. An unquoted placeholder takes the YAML type of its value, so `port: ${PORT}` is a number; quote it, as in `"${VAR}"`, to keep a string. The server fails to start if a `${VAR}` without a default is unset or empty, and the error names the variable. Keys and comments are not expanded.
+
 ### Proto Generation Settings
 
 ```yaml
